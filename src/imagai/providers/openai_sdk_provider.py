@@ -25,19 +25,31 @@ class OpenAISDKProvider(BaseImageProvider):
     ) -> List[ImageGenerationResponse]:
         responses: List[ImageGenerationResponse] = []
         try:
-            api_response = await self.async_client.images.generate(
-                model=self.config.model or "dall-e-2",
-                prompt=request.prompt,
-                n=request.n or 1,
-                size=request.size or "1024x1024",
-                quality=request.quality
-                if self.config.model and "dall-e-3" in self.config.model
-                else None,
-                style=request.style
-                if self.config.model and "dall-e-3" in self.config.model
-                else None,
-                response_format=request.response_format or "url",
-            )
+            kwargs = {
+                "model": self.config.model or "dall-e-2",
+                "prompt": request.prompt,
+                "n": request.n or 1,
+                "size": request.size or "1024x1024",
+                "response_format": request.response_format or "url",
+            }
+
+            if self.config.model and "dall-e-3" in self.config.model:
+                kwargs["quality"] = request.quality
+                kwargs["style"] = request.style
+
+            if self.config.model and "stability" in self.config.model.lower():
+                # Add additional parameters for Stability AI models
+                # Placeholder: consult docs.avalai.ir for actual parameters
+                kwargs["aspect_ratio"] = "1:1"
+                # We might need to remove 'size' if 'aspect_ratio' is used,
+                # or if Stability AI uses different dimension parameters.
+                # For now, let's assume 'size' might still be relevant or ignored if aspect_ratio is present.
+                # The Avaloq documentation should clarify this.
+                # Example: if 'size' is incompatible, we might do:
+                # if "size" in kwargs:
+                #     del kwargs["size"]
+
+            api_response = await self.async_client.images.generate(**kwargs)
             for image_data in api_response.data:
                 img_response = ImageGenerationResponse()
                 if image_data.url:
