@@ -7,6 +7,8 @@ from imagai.providers.base_provider import BaseImageProvider
 from typing import List
 import logging
 import json
+from rich.console import Console
+from rich.table import Table
 
 logger = logging.getLogger(__name__)
 
@@ -103,16 +105,54 @@ class OpenAISDKProvider(BaseImageProvider):
                 img_response.usage = usage
                 img_response.estimated_cost = estimated_cost
                 responses.append(img_response)
+
             if request.verbose:
-                print("--- API Usage & Cost Info ---")
-                print(
-                    json.dumps(
-                        {"usage": usage, "estimated_cost": estimated_cost},
-                        indent=2,
-                        default=str,
-                    )
+                console = Console()
+                table = Table(
+                    title="API Usage & Cost Info",
+                    show_header=True,
+                    header_style="bold magenta",
                 )
-                print("----------------------------")
+                table.add_column("Category", style="cyan", width=15)
+                table.add_column("Attribute", style="green", width=20)
+                table.add_column("Value", style="yellow")
+
+                has_data_to_display = False
+
+                if usage:
+                    attributes_to_check = [
+                        "input_tokens",
+                        "output_tokens",
+                        "total_tokens",
+                        "input_tokens_details",
+                    ]
+                    usage_details_added = False
+                    for attr in attributes_to_check:
+                        if hasattr(usage, attr):
+                            value = getattr(usage, attr)
+                            table.add_row(
+                                "Usage",
+                                attr,
+                                str(value) if value is not None else "N/A",
+                            )
+                            usage_details_added = True
+                            has_data_to_display = True
+
+                    if not usage_details_added:
+                        # Fallback if no known attributes found, print str(usage)
+                        table.add_row("Usage", "Raw Data", str(usage))
+                        has_data_to_display = True
+
+                if estimated_cost:  # This is a dict
+                    for key, value in estimated_cost.items():
+                        table.add_row("Estimated Cost", key, str(value))
+                        has_data_to_display = True
+
+                if has_data_to_display:
+                    console.print(table)
+                else:
+                    console.print("No usage or cost information available.")
+
             return responses
         except Exception as e:
             logger.error(f"Error generating image with engine {request.engine}: {e}")
