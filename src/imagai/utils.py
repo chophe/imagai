@@ -70,7 +70,7 @@ async def generate_filename_from_prompt_llm(
         },
         {
             "role": "user",
-            "content": f"Generate a best filename for the pictures that will be generated from this prompt: `{prompt}`",
+            "content": f"Generate a best english filename for the pictures that will be generated from this prompt: `{prompt}`",
         },
     ]
     request_json = {
