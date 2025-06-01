@@ -66,17 +66,17 @@ async def generate_filename_from_prompt_llm(
     messages = [
         {
             "role": "system",
-            "content": "You are a helpful assistant that generates concise, descriptive, and filesystem-safe filenames based on user prompts. The filename should not include the file extension. Max 5 words.",
+            "content": "You are a helpful assistant that generates concise, descriptive, and filesystem-safe filenames based on user prompts. The filename should not include the file extension. Max 10 words.",
         },
         {
             "role": "user",
-            "content": f"Generate a filename for this prompt: {prompt}",
+            "content": f"Generate a best filename for the pictures that will be generated from this prompt: `{prompt}`",
         },
     ]
     request_json = {
         "model": model,
         "messages": messages,
-        "max_tokens": 20,
+        "max_tokens": 30,
         "temperature": 0.7,
     }
     if verbose:
