@@ -79,6 +79,22 @@ def generate(
     response_format: Annotated[
         str, typer.Option(help="Response format ('url' or 'b64_json').")
     ] = "b64_json",
+    auto_filename: Annotated[
+        bool,
+        typer.Option(
+            "--auto-filename",
+            help="Generate filename automatically from prompt using an LLM.",
+            is_flag=True,
+        ),
+    ] = False,
+    random_filename: Annotated[
+        bool,
+        typer.Option(
+            "--random-filename",
+            help="Generate a random filename.",
+            is_flag=True,
+        ),
+    ] = False,
     negative_prompt: Annotated[
         str,
         typer.Option(
@@ -175,6 +191,8 @@ def generate(
             if v is not None
         },
         verbose=verbose,
+        auto_filename=auto_filename,
+        random_filename=random_filename,
     )
 
     async def _generate():

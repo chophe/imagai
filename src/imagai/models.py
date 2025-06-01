@@ -17,6 +17,8 @@ class ImageGenerationRequest(BaseModel):
     response_format: Optional[Literal["url", "b64_json"]] = "url"
     extra_params: Optional[dict] = None
     verbose: bool = False
+    auto_filename: bool = False
+    random_filename: bool = False
 
 
 class ImageGenerationResponse(BaseModel):

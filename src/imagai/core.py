@@ -5,6 +5,8 @@ from imagai.utils import (
     save_image_from_url,
     save_image_from_b64,
     generate_filename,
+    generate_random_filename,
+    generate_filename_from_prompt_llm,
     get_image_extension,
 )
 from pathlib import Path
@@ -40,6 +42,24 @@ async def generate_image_core(
                     current_filename = f"{name_part}_{i + 1}.{output_ext}"
                 else:
                     current_filename = base_filename
+            elif request.auto_filename:
+                current_filename = await generate_filename_from_prompt_llm(
+                    prompt=request.prompt, extension=output_ext
+                )
+                if request.n > 1:
+                    name_part, ext_part = (
+                        Path(current_filename).stem,
+                        Path(current_filename).suffix,
+                    )
+                    current_filename = f"{name_part}_{i + 1}{ext_part}"
+            elif request.random_filename:
+                current_filename = generate_random_filename(extension=output_ext)
+                if request.n > 1:
+                    name_part, ext_part = (
+                        Path(current_filename).stem,
+                        Path(current_filename).suffix,
+                    )
+                    current_filename = f"{name_part}_{i + 1}{ext_part}"
             else:
                 current_filename = generate_filename(
                     prompt=request.prompt, extension=output_ext
