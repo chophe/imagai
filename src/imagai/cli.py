@@ -43,9 +43,12 @@ def main_callback(
 @app.command()
 def generate(
     prompt: Annotated[
-        str,
+        str | None,
         typer.Option(
-            ..., "--prompt", "-p", help="The text prompt for image generation."
+            None,
+            "--prompt",
+            "-p",
+            help="The text prompt for image generation. If not provided, you will be asked to enter it.",
         ),
     ],
     engine: Annotated[
@@ -157,6 +160,10 @@ def generate(
         else:
             console.print("No engines are configured. Please check your .env file.")
         raise typer.Exit(code=1)
+
+    if not prompt:
+        prompt = typer.prompt("Please enter the prompt for image generation")
+
     if selected_engine not in settings.engines:
         console.print(
             f"[bold red]Error:[/bold red] Engine '{selected_engine}' is not configured."
