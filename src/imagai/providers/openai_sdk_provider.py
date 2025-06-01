@@ -38,9 +38,13 @@ class OpenAISDKProvider(BaseImageProvider):
                 kwargs["style"] = request.style
 
             if self.config.model and "stability" in self.config.model.lower():
+                # Available fields: ['prompt', 'negative_prompt', 'mode', 'strength', 'seed', 'output_format', 'image', 'aspect_ratio']\
+                kwargs["mode"] = "text-to-image"
+                del kwargs["n"]
+
                 # Add additional parameters for Stability AI models
                 # Placeholder: consult docs.avalai.ir for actual parameters
-                kwargs["aspect_ratio"] = "1:1"
+                # kwargs["aspect_ratio"] = "1:1"
                 # We might need to remove 'size' if 'aspect_ratio' is used,
                 # or if Stability AI uses different dimension parameters.
                 # For now, let's assume 'size' might still be relevant or ignored if aspect_ratio is present.
