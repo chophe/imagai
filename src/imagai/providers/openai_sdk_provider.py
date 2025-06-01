@@ -6,6 +6,7 @@ from imagai.models import ImageGenerationRequest, ImageGenerationResponse
 from imagai.providers.base_provider import BaseImageProvider
 from typing import List
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class OpenAISDKProvider(BaseImageProvider):
         responses: List[ImageGenerationResponse] = []
         try:
             kwargs = {
-                "model": self.config.model or "dall-e-2",
+                "model": self.config.model or "dall-e-3",
                 "prompt": request.prompt,
                 "n": request.n or 1,
                 "size": request.size or "1024x1024",
@@ -83,9 +84,16 @@ class OpenAISDKProvider(BaseImageProvider):
                 if extra_body:
                     kwargs["extra_body"] = extra_body
 
-            # The existing placeholder comments regarding Avaloq documentation and specific
-            # parameter handling (like removing 'size' if 'aspect_ratio' is used)
-            # are addressed by the logic above.
+            if request.verbose:
+                print("--- API Request Body ---")
+                try:
+                    # Attempt to serialize with indent for readability
+                    # Handle potential non-serializable items gracefully if any were to be added later
+                    print(json.dumps(kwargs, indent=2, default=str))
+                except TypeError:
+                    # Fallback for any unexpected non-serializable content
+                    print(kwargs)
+                print("------------------------")
 
             api_response = await self.async_client.images.generate(**kwargs)
             for image_data in api_response.data:

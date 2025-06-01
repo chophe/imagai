@@ -16,6 +16,7 @@ class ImageGenerationRequest(BaseModel):
     style: Optional[Literal["vivid", "natural"]] = "vivid"
     response_format: Optional[Literal["url", "b64_json"]] = "url"
     extra_params: Optional[dict] = None
+    verbose: bool = False
 
 
 class ImageGenerationResponse(BaseModel):

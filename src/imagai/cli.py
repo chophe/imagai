@@ -121,6 +121,14 @@ def generate(
             help="[Stability AI] Generation mode: 'text-to-image' or 'image-to-image'.",
         ),
     ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            help="Print the request body sent to the API.",
+            is_flag=True,
+        ),
+    ] = False,
 ):
     selected_engine = engine or settings.default_engine
     if not selected_engine:
@@ -166,6 +174,7 @@ def generate(
             }.items()
             if v is not None
         },
+        verbose=verbose,
     )
 
     async def _generate():
