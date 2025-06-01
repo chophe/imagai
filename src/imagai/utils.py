@@ -63,7 +63,7 @@ async def generate_filename_from_prompt_llm(prompt: str, extension: str = "png")
     try:
         response = await client.chat.completions.create(
             model=filename_engine_config.model
-            or "gpt-3.5-turbo",  # Default to gpt-3.5-turbo if not specified
+            or "gpt-4.1-mini",  # Default to gpt-4.1-mini if not specified
             messages=[
                 {
                     "role": "system",
