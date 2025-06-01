@@ -78,7 +78,7 @@ def generate(
     ] = "vivid",
     response_format: Annotated[
         str, typer.Option(help="Response format ('url' or 'b64_json').")
-    ] = "url",
+    ] = "b64_json",
     negative_prompt: Annotated[
         str,
         typer.Option(
