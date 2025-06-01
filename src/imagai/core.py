@@ -44,7 +44,7 @@ async def generate_image_core(
                     current_filename = base_filename
             elif request.auto_filename:
                 current_filename = await generate_filename_from_prompt_llm(
-                    prompt=request.prompt, extension=output_ext
+                    prompt=request.prompt, extension=output_ext, verbose=request.verbose
                 )
                 if request.n > 1:
                     name_part, ext_part = (

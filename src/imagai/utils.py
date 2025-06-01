@@ -22,7 +22,9 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
-async def generate_filename_from_prompt_llm(prompt: str, extension: str = "png") -> str:
+async def generate_filename_from_prompt_llm(
+    prompt: str, extension: str = "png", verbose: bool = False
+) -> str:
     """Generates a filename from a prompt using an LLM."""
     # Determine which engine configuration to use for filename generation
     # Priority: Dedicated "filename_generation" engine, then default_engine, then first available OpenAI engine
@@ -60,20 +62,35 @@ async def generate_filename_from_prompt_llm(prompt: str, extension: str = "png")
         if filename_engine_config.base_url
         else None,
     )
+    model = filename_engine_config.model or "gpt-4.1-mini"
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant that generates concise, descriptive, and filesystem-safe filenames based on user prompts. The filename should not include the file extension. Max 5 words.",
+        },
+        {
+            "role": "user",
+            "content": f"Generate a filename for this prompt: {prompt}",
+        },
+    ]
+    request_json = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": 20,
+        "temperature": 0.2,
+    }
+    if verbose:
+        print("--- LLM Filename Generation Request ---")
+        print(f"Model: {model}")
+        print(f"Prompt: {prompt}")
+        import json
+
+        print(json.dumps(request_json, indent=2, ensure_ascii=False))
+        print("--------------------------------------")
     try:
         response = await client.chat.completions.create(
-            model=filename_engine_config.model
-            or "gpt-4.1-mini",  # Default to gpt-4.1-mini if not specified
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant that generates concise, descriptive, and filesystem-safe filenames based on user prompts. The filename should not include the file extension. Max 5 words.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Generate a filename for this prompt: {prompt}",
-                },
-            ],
+            model=model,
+            messages=messages,
             max_tokens=20,
             temperature=0.2,
         )
