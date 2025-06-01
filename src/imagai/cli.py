@@ -45,12 +45,12 @@ def generate(
     prompt: Annotated[
         str | None,
         typer.Option(
-            None,
             "--prompt",
             "-p",
             help="The text prompt for image generation. If not provided, you will be asked to enter it.",
+            show_default=False,
         ),
-    ],
+    ] = None,
     engine: Annotated[
         str,
         typer.Option(help="The image generation engine to use (e.g., openai_dalle3)."),
@@ -161,7 +161,7 @@ def generate(
             console.print("No engines are configured. Please check your .env file.")
         raise typer.Exit(code=1)
 
-    if not prompt:
+    if prompt is None:
         prompt = typer.prompt("Please enter the prompt for image generation")
 
     if selected_engine not in settings.engines:
