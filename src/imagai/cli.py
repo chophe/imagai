@@ -82,42 +82,42 @@ def generate(
     negative_prompt: Annotated[
         str,
         typer.Option(
-            None,
+            "--negative-prompt",
             help="[Stability AI] Negative prompt: what should be avoided in the image.",
         ),
     ] = None,
     seed: Annotated[
         int,
         typer.Option(
-            None,
+            "--seed",
             help="[Stability AI] Seed for reproducibility (integer).",
         ),
     ] = None,
     strength: Annotated[
         float,
         typer.Option(
-            None,
+            "--strength",
             help="[Stability AI] Strength for image-to-image editing (0.0-1.0).",
         ),
     ] = None,
     output_format: Annotated[
         str,
         typer.Option(
-            None,
+            "--output-format",
             help="[Stability AI] Output image format (e.g., 'png').",
         ),
     ] = None,
     aspect_ratio: Annotated[
         str,
         typer.Option(
-            None,
+            "--aspect-ratio",
             help="[Stability AI] Aspect ratio (e.g., '1:1', '16:9'). Overrides size if set.",
         ),
     ] = None,
     mode: Annotated[
         str,
         typer.Option(
-            None,
+            "--mode",
             help="[Stability AI] Generation mode: 'text-to-image' or 'image-to-image'.",
         ),
     ] = None,
