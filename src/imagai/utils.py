@@ -77,7 +77,7 @@ async def generate_filename_from_prompt_llm(
         "model": model,
         "messages": messages,
         "max_tokens": 20,
-        "temperature": 0.2,
+        "temperature": 0.7,
     }
     if verbose:
         print("--- LLM Filename Generation Request ---")
@@ -94,6 +94,15 @@ async def generate_filename_from_prompt_llm(
             max_tokens=20,
             temperature=0.2,
         )
+        if verbose:
+            print("--- LLM Filename Generation Response ---")
+            print(
+                json.dumps(
+                    response.choices[0].message.content, indent=2, ensure_ascii=False
+                )
+            )
+            print("--------------------------------------")
+
         raw_filename = response.choices[0].message.content.strip()
         sanitized = sanitize_filename(raw_filename)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
