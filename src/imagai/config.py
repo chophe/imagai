@@ -1,6 +1,7 @@
 from pydantic import BaseModel, HttpUrl, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Dict, Optional
+import os
 
 
 class EngineConfig(BaseModel):
@@ -33,8 +34,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-import os
 
 for key, value in os.environ.items():
     if key.startswith("IMAGAI__ENGINES__"):
