@@ -47,6 +47,7 @@ class OpenAISDKProvider(BaseImageProvider):
                     del kwargs["n"]
                 if "response_format" in kwargs:
                     del kwargs["response_format"]
+
                 stability_specific_params = [
                     "negative_prompt",
                     "seed",
@@ -55,6 +56,11 @@ class OpenAISDKProvider(BaseImageProvider):
                     "aspect_ratio",
                     "mode",
                 ]
+                extra_body = {}
+
+                # Populate extra_body from request.extra_params if they are provided
+                # This assumes 'request' has an 'extra_params' attribute (e.g., a dictionary)
+                # containing additional parameters passed from the CLI or other sources.
 
                 # Populate stability-specific params directly into kwargs from request.extra_params if provided
                 if hasattr(request, "extra_params") and request.extra_params:
@@ -63,22 +69,26 @@ class OpenAISDKProvider(BaseImageProvider):
                             key in request.extra_params
                             and request.extra_params[key] is not None
                         ):
-                            kwargs[key] = request.extra_params[key]
+                            extra_body[key] = request.extra_params[key]
 
                 # Handle 'mode' parameter logic for Stability AI
-                # If user explicitly provided 'mode' via extra_params, it's already in kwargs.
+                # If user explicitly provided 'mode' via extra_params, it's already in extra_body.
                 # Otherwise, apply specific defaults based on model type.
-                if "mode" not in kwargs:
+                if "mode" not in extra_body:
                     # For SD3 models, do not add 'mode' by default.
                     # It should be explicitly set by the user if needed (e.g., for 'image-to-image').
                     # For other (non-SD3) stability models, default to "text-to-image".
                     if "sd3" not in self.config.model.lower():
-                        kwargs["mode"] = "text-to-image"
+                        extra_body["mode"] = "text-to-image"
 
                 # Handle potential conflict between 'size' and 'aspect_ratio'
                 # If 'aspect_ratio' is provided (now in kwargs), 'size' might be redundant or conflicting.
-                if "aspect_ratio" in kwargs and "size" in kwargs:
+                if "aspect_ratio" in extra_body and "size" in kwargs:
                     del kwargs["size"]  # Prefer aspect_ratio if explicitly provided
+
+                # Add the collected stability-specific parameters to the API call via extra_body
+                if extra_body:
+                    kwargs["extra_body"] = extra_body
 
             if request.verbose:
                 print("--- API Request Body ---")
