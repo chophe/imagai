@@ -24,3 +24,5 @@ class ImageGenerationResponse(BaseModel):
     image_b64_json: Optional[str] = None
     saved_path: Optional[str] = None
     error: Optional[str] = None
+    usage: Optional[dict] = None
+    estimated_cost: Optional[dict] = None

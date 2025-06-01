@@ -43,7 +43,8 @@ class OpenAISDKProvider(BaseImageProvider):
                 # The AvalAI examples, which this provider might be used with via base_url, don't show 'n'.
                 if "n" in kwargs:
                     del kwargs["n"]
-
+                if "response_format" in kwargs:
+                    del kwargs["response_format"]
                 stability_specific_params = [
                     "negative_prompt",
                     "seed",
@@ -96,6 +97,8 @@ class OpenAISDKProvider(BaseImageProvider):
                 print("------------------------")
 
             api_response = await self.async_client.images.generate(**kwargs)
+            usage = getattr(api_response, "usage", None)
+            estimated_cost = getattr(api_response, "estimated_cost", None)
             for image_data in api_response.data:
                 img_response = ImageGenerationResponse()
                 if image_data.url:
@@ -104,7 +107,19 @@ class OpenAISDKProvider(BaseImageProvider):
                     img_response.image_b64_json = image_data.b64_json
                 else:
                     img_response.error = "No image data found in API response."
+                img_response.usage = usage
+                img_response.estimated_cost = estimated_cost
                 responses.append(img_response)
+            if request.verbose:
+                print("--- API Usage & Cost Info ---")
+                print(
+                    json.dumps(
+                        {"usage": usage, "estimated_cost": estimated_cost},
+                        indent=2,
+                        default=str,
+                    )
+                )
+                print("----------------------------")
             return responses
         except Exception as e:
             logger.error(f"Error generating image with engine {request.engine}: {e}")
