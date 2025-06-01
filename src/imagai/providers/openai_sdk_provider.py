@@ -38,20 +38,54 @@ class OpenAISDKProvider(BaseImageProvider):
                 kwargs["style"] = request.style
 
             if self.config.model and "stability" in self.config.model.lower():
-                # Available fields: ['prompt', 'negative_prompt', 'mode', 'strength', 'seed', 'output_format', 'image', 'aspect_ratio']\
-                kwargs["mode"] = "text-to-image"
-                del kwargs["n"]
+                # For Stability AI models, 'n' is typically not used or handled differently.
+                # The AvalAI examples, which this provider might be used with via base_url, don't show 'n'.
+                if "n" in kwargs:
+                    del kwargs["n"]
 
-                # Add additional parameters for Stability AI models
-                # Placeholder: consult docs.avalai.ir for actual parameters
-                # kwargs["aspect_ratio"] = "1:1"
-                # We might need to remove 'size' if 'aspect_ratio' is used,
-                # or if Stability AI uses different dimension parameters.
-                # For now, let's assume 'size' might still be relevant or ignored if aspect_ratio is present.
-                # The Avaloq documentation should clarify this.
-                # Example: if 'size' is incompatible, we might do:
-                # if "size" in kwargs:
-                #     del kwargs["size"]
+                stability_specific_params = [
+                    "negative_prompt",
+                    "seed",
+                    "strength",
+                    "output_format",
+                    "aspect_ratio",
+                    "mode",
+                ]
+                extra_body = {}
+
+                # Populate extra_body from request.extra_params if they are provided
+                # This assumes 'request' has an 'extra_params' attribute (e.g., a dictionary)
+                # containing additional parameters passed from the CLI or other sources.
+                if hasattr(request, "extra_params") and request.extra_params:
+                    for key in stability_specific_params:
+                        if (
+                            key in request.extra_params
+                            and request.extra_params[key] is not None
+                        ):
+                            extra_body[key] = request.extra_params[key]
+
+                # Handle 'mode' parameter logic for Stability AI
+                # If user explicitly provided 'mode' via extra_params, it's already in extra_body.
+                # Otherwise, apply specific defaults based on model type.
+                if "mode" not in extra_body:
+                    # For SD3 models, do not add 'mode' by default.
+                    # It should be explicitly set by the user if needed (e.g., for 'image-to-image').
+                    # For other (non-SD3) stability models, default to "text-to-image".
+                    if "sd3" not in self.config.model.lower():
+                        extra_body["mode"] = "text-to-image"
+
+                # Handle potential conflict between 'size' and 'aspect_ratio'
+                # If 'aspect_ratio' is provided (now in extra_body), 'size' might be redundant or conflicting.
+                if "aspect_ratio" in extra_body and "size" in kwargs:
+                    del kwargs["size"]  # Prefer aspect_ratio if explicitly provided
+
+                # Add the collected stability-specific parameters to the API call via extra_body
+                if extra_body:
+                    kwargs["extra_body"] = extra_body
+
+            # The existing placeholder comments regarding Avaloq documentation and specific
+            # parameter handling (like removing 'size' if 'aspect_ratio' is used)
+            # are addressed by the logic above.
 
             api_response = await self.async_client.images.generate(**kwargs)
             for image_data in api_response.data:
