@@ -79,6 +79,48 @@ def generate(
     response_format: Annotated[
         str, typer.Option(help="Response format ('url' or 'b64_json').")
     ] = "url",
+    negative_prompt: Annotated[
+        str,
+        typer.Option(
+            None,
+            help="[Stability AI] Negative prompt: what should be avoided in the image.",
+        ),
+    ] = None,
+    seed: Annotated[
+        int,
+        typer.Option(
+            None,
+            help="[Stability AI] Seed for reproducibility (integer).",
+        ),
+    ] = None,
+    strength: Annotated[
+        float,
+        typer.Option(
+            None,
+            help="[Stability AI] Strength for image-to-image editing (0.0-1.0).",
+        ),
+    ] = None,
+    output_format: Annotated[
+        str,
+        typer.Option(
+            None,
+            help="[Stability AI] Output image format (e.g., 'png').",
+        ),
+    ] = None,
+    aspect_ratio: Annotated[
+        str,
+        typer.Option(
+            None,
+            help="[Stability AI] Aspect ratio (e.g., '1:1', '16:9'). Overrides size if set.",
+        ),
+    ] = None,
+    mode: Annotated[
+        str,
+        typer.Option(
+            None,
+            help="[Stability AI] Generation mode: 'text-to-image' or 'image-to-image'.",
+        ),
+    ] = None,
 ):
     selected_engine = engine or settings.default_engine
     if not selected_engine:
@@ -112,6 +154,18 @@ def generate(
         quality=quality,
         style=style,
         response_format=response_format,
+        extra_params={
+            k: v
+            for k, v in {
+                "negative_prompt": negative_prompt,
+                "seed": seed,
+                "strength": strength,
+                "output_format": output_format,
+                "aspect_ratio": aspect_ratio,
+                "mode": mode,
+            }.items()
+            if v is not None
+        },
     )
 
     async def _generate():
