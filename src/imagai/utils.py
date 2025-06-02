@@ -10,6 +10,7 @@ import uuid
 import re
 from imagai.config import settings
 from openai import AsyncOpenAI
+from PIL import PngImagePlugin
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,27 @@ def generate_filename(prompt: Optional[str] = None, extension: str = "png") -> s
     return f"image_{timestamp}.{extension}"
 
 
-async def save_image_from_url(image_url: str, output_path: Path) -> Optional[Path]:
+def _inject_metadata(
+    img: Image.Image, prompt: str, model: str, ext: str
+) -> Image.Image:
+    """Injects prompt and model info as EXIF (JPEG) or tEXt (PNG) metadata."""
+    if ext in ("jpg", "jpeg"):
+        exif = img.getexif()
+        # Use standard EXIF tag 270 (ImageDescription) for prompt, 305 (Software) for model
+        exif[270] = prompt[:200]  # Truncate if too long
+        exif[305] = model
+        img.info["exif"] = exif.tobytes()
+    elif ext == "png":
+        meta = PngImagePlugin.PngInfo()
+        meta.add_text("Prompt", prompt)
+        meta.add_text("Model", model)
+        img.info["pnginfo"] = meta
+    return img
+
+
+async def save_image_from_url(
+    image_url: str, output_path: Path, prompt: str = None, model: str = None
+) -> Optional[Path]:
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(image_url)
@@ -141,7 +162,15 @@ async def save_image_from_url(image_url: str, output_path: Path) -> Optional[Pat
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             img = Image.open(io.BytesIO(response.content))
-            img.save(output_path)
+            ext = output_path.suffix[1:].lower()
+            if prompt and model:
+                img = _inject_metadata(img, prompt, model, ext)
+            if ext == "png" and "pnginfo" in img.info:
+                img.save(output_path, pnginfo=img.info["pnginfo"])
+            elif ext in ("jpg", "jpeg") and "exif" in img.info:
+                img.save(output_path, exif=img.info["exif"])
+            else:
+                img.save(output_path)
             logger.info(f"Image saved to {output_path}")
             return output_path
         except Exception as e:
@@ -159,13 +188,23 @@ async def save_image_from_url(image_url: str, output_path: Path) -> Optional[Pat
         return None
 
 
-async def save_image_from_b64(b64_json: str, output_path: Path) -> Optional[Path]:
+async def save_image_from_b64(
+    b64_json: str, output_path: Path, prompt: str = None, model: str = None
+) -> Optional[Path]:
     try:
         image_bytes = base64.b64decode(b64_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             img = Image.open(io.BytesIO(image_bytes))
-            img.save(output_path)
+            ext = output_path.suffix[1:].lower()
+            if prompt and model:
+                img = _inject_metadata(img, prompt, model, ext)
+            if ext == "png" and "pnginfo" in img.info:
+                img.save(output_path, pnginfo=img.info["pnginfo"])
+            elif ext in ("jpg", "jpeg") and "exif" in img.info:
+                img.save(output_path, exif=img.info["exif"])
+            else:
+                img.save(output_path)
             logger.info(f"Image saved to {output_path}")
             return output_path
         except Exception as e:

@@ -66,13 +66,21 @@ async def generate_image_core(
                 )
             output_file_path = Path(settings.output_dir) / current_filename
             saved_path = None
+            model_name = (
+                engine_config.model
+                if hasattr(engine_config, "model")
+                else str(engine_config)
+            )
             if api_response.image_url:
                 saved_path = await save_image_from_url(
-                    api_response.image_url, output_file_path
+                    api_response.image_url, output_file_path, request.prompt, model_name
                 )
             elif api_response.image_b64_json:
                 saved_path = await save_image_from_b64(
-                    api_response.image_b64_json, output_file_path
+                    api_response.image_b64_json,
+                    output_file_path,
+                    request.prompt,
+                    model_name,
                 )
             if saved_path:
                 api_response.saved_path = str(saved_path)
