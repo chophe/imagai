@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 import asyncio
+import sys
 
 from imagai import __version__
 from imagai.core import generate_image_core
@@ -162,7 +163,10 @@ def generate(
         raise typer.Exit(code=1)
 
     if prompt is None:
-        prompt = typer.prompt("Please enter the prompt for image generation")
+        console.print(
+            "[yellow]Enter your prompt. For multiline, paste or type and then press Ctrl+D (Linux/Mac) or Ctrl+Z then Enter (Windows) to finish:[/yellow]"
+        )
+        prompt = sys.stdin.read().strip()
 
     if selected_engine not in settings.engines:
         console.print(
