@@ -234,7 +234,19 @@ def generate(
 
 
 @app.command(name="list-engines")
-def list_engines_command():
+def list_engines_command(
+    list_all: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help=(
+                "Query each engine for available models and list ALL returned models. "
+                "Without this flag, only image-generation models are shown."
+            ),
+            is_flag=True,
+        ),
+    ] = False,
+):
     if not settings.engines:
         console.print(
             "[yellow]No engines configured. Check your .env file or environment variables.[/yellow]"
@@ -258,6 +270,77 @@ def list_engines_command():
             name, api_key_status, base_url_str, config.model or "Not specified"
         )
     console.print(table)
+
+    # If requested, also fetch models from each engine and display them
+    try:
+        from openai import OpenAI  # lazy import to avoid unnecessary import on normal runs
+    except Exception:
+        OpenAI = None
+
+    def _is_image_model(model_id: str) -> bool:
+        mid = model_id.lower()
+        image_indicators = [
+            "dall-e",
+            "gpt-image",
+            ":image",
+            "-image",
+            "image-",
+            "img-",
+            "sd",
+            "sd3",
+            "sdxl",
+            "stable",
+            "stability",
+            "flux",
+        ]
+        return any(ind in mid for ind in image_indicators)
+
+    if OpenAI:
+        for name, config in settings.engines.items():
+            # Skip if API key is not properly set
+            if not config.api_key or config.api_key == "YOUR_OPENAI_API_KEY":
+                console.print(
+                    f"[yellow]Skipping model fetch for '{name}': missing API key.[/yellow]"
+                )
+                continue
+            # Initialize client
+            try:
+                if config.base_url:
+                    client = OpenAI(api_key=config.api_key, base_url=str(config.base_url))
+                else:
+                    client = OpenAI(api_key=config.api_key)
+                # Fetch models
+                models_resp = client.models.list()
+                # Extract model IDs robustly
+                model_ids = []
+                data = getattr(models_resp, "data", models_resp)
+                for m in data:
+                    # OpenAI objects have attribute 'id', dicts use ['id']
+                    mid = getattr(m, "id", None) or (m.get("id") if isinstance(m, dict) else None)
+                    if mid:
+                        model_ids.append(mid)
+                if not list_all:
+                    model_ids = [m for m in model_ids if _is_image_model(m)]
+                # Render table per engine
+                models_table = Table(title=f"📚 Models for '{name}' ({'all' if list_all else 'image-generation only'})")
+                models_table.add_column("Model ID", style="cyan")
+                if model_ids:
+                    for mid in sorted(model_ids):
+                        models_table.add_row(mid)
+                else:
+                    models_table.add_row("[dim]No models to display[/dim]")
+                console.print(models_table)
+            except Exception as e:
+                console.print(
+                    Panel(
+                        f"Failed to fetch models for engine '[bold]{name}[/bold]': {e}",
+                        title="[red]Model Fetch Error[/red]",
+                    )
+                )
+    else:
+        console.print(
+            "[yellow]openai package not available; cannot fetch models. Install dependencies with `rye sync`.[/yellow]"
+        )
 
 
 if __name__ == "__main__":
