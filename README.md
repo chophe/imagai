@@ -23,6 +23,49 @@ A CLI tool to generate images using various AI APIs, including OpenAI (DALL-E) a
     # Edit .env with your details
     ```
 
+## How to Run
+
+Quick start (with Rye):
+
+```bash
+# 1) Install deps (first time or after changes)
+rye sync
+
+# 2) See CLI help
+rye run imagai --help
+
+# 3) Generate an image
+rye run imagai generate --prompt "A beautiful sunset over a mountain range"
+```
+
+Common tasks:
+
+- Run tests
+  ```bash
+  rye run pytest -q
+  ```
+- Add a dependency
+  ```bash
+  rye add <package>
+  ```
+- Add a dev dependency
+  ```bash
+  rye add --dev <package>
+  ```
+- Update lockfiles and reinstall
+  ```bash
+  rye lock
+  rye sync
+  ```
+- Build the package (wheel/sdist)
+  ```bash
+  rye build
+  ```
+
+Note:
+- Python version is pinned via `.python-version`. If needed, you can switch with `rye pin <version>` then `rye sync`.
+- If you want to list configured engines: `rye run imagai list-engines`.
+
 ## Usage
 
 ```bash
