@@ -18,6 +18,9 @@ anyio==4.9.0
 certifi==2025.4.26
     # via httpcore
     # via httpx
+    # via requests
+charset-normalizer==3.4.3
+    # via requests
 click==8.2.1
     # via typer
 colorama==0.4.6
@@ -36,6 +39,7 @@ httpx==0.28.1
 idna==3.10
     # via anyio
     # via httpx
+    # via requests
 iniconfig==2.1.0
     # via pytest
 jiter==0.10.0
@@ -65,6 +69,8 @@ pygments==2.19.1
 pytest==8.3.5
 python-dotenv==1.1.0
     # via pydantic-settings
+requests==2.32.5
+    # via imagai
 rich==14.0.0
     # via imagai
     # via typer
@@ -87,3 +93,5 @@ typing-extensions==4.13.2
 typing-inspection==0.4.1
     # via pydantic
     # via pydantic-settings
+urllib3==2.5.0
+    # via requests

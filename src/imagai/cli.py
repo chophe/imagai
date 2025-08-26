@@ -277,6 +277,12 @@ def list_engines_command(
     except Exception:
         OpenAI = None
 
+    # Also try plain HTTP as a fallback for OpenAI-compatible endpoints (e.g., AvalAI)
+    try:
+        import requests as _requests  # type: ignore
+    except Exception:
+        _requests = None
+
     def _is_image_model(model_id: str) -> bool:
         mid = model_id.lower()
         image_indicators = [
@@ -295,51 +301,95 @@ def list_engines_command(
         ]
         return any(ind in mid for ind in image_indicators)
 
-    if OpenAI:
-        for name, config in settings.engines.items():
-            # Skip if API key is not properly set
-            if not config.api_key or config.api_key == "YOUR_OPENAI_API_KEY":
-                console.print(
-                    f"[yellow]Skipping model fetch for '{name}': missing API key.[/yellow]"
-                )
-                continue
-            # Initialize client
+    # Attempt to fetch models for each engine; prefer OpenAI client, fallback to direct HTTP GET {base_url}/models
+    for name, config in settings.engines.items():
+        # Skip if API key is not properly set
+        if not config.api_key or config.api_key == "YOUR_OPENAI_API_KEY":
+            console.print(
+                f"[yellow]Skipping model fetch for '{name}': missing API key.[/yellow]"
+            )
+            continue
+
+        model_ids: list[str] = []
+        errors: list[str] = []
+
+        # 1) Try via OpenAI client when available
+        if OpenAI:
             try:
-                if config.base_url:
-                    client = OpenAI(api_key=config.api_key, base_url=str(config.base_url))
-                else:
-                    client = OpenAI(api_key=config.api_key)
-                # Fetch models
+                client = (
+                    OpenAI(api_key=config.api_key, base_url=str(config.base_url))
+                    if config.base_url
+                    else OpenAI(api_key=config.api_key)
+                )
                 models_resp = client.models.list()
-                # Extract model IDs robustly
-                model_ids = []
                 data = getattr(models_resp, "data", models_resp)
                 for m in data:
-                    # OpenAI objects have attribute 'id', dicts use ['id']
                     mid = getattr(m, "id", None) or (m.get("id") if isinstance(m, dict) else None)
                     if mid:
                         model_ids.append(mid)
-                if not list_all:
-                    model_ids = [m for m in model_ids if _is_image_model(m)]
-                # Render table per engine
-                models_table = Table(title=f"📚 Models for '{name}' ({'all' if list_all else 'image-generation only'})")
-                models_table.add_column("Model ID", style="cyan")
-                if model_ids:
-                    for mid in sorted(model_ids):
-                        models_table.add_row(mid)
-                else:
-                    models_table.add_row("[dim]No models to display[/dim]")
-                console.print(models_table)
             except Exception as e:
-                console.print(
-                    Panel(
-                        f"Failed to fetch models for engine '[bold]{name}[/bold]': {e}",
-                        title="[red]Model Fetch Error[/red]",
-                    )
+                errors.append(f"OpenAI client error: {e}")
+
+        # 2) Fallback via plain HTTP to {base_url}/models (OpenAI-compatible endpoints like AvalAI)
+        if not model_ids and getattr(config, "base_url", None):
+            try:
+                if _requests is None:
+                    raise RuntimeError("requests not installed; run `rye add requests && rye sync`.")
+                url = str(config.base_url).rstrip("/") + "/models"
+                headers = {
+                    "Authorization": f"Bearer {config.api_key}",
+                    "Content-Type": "application/json",
+                }
+                resp = _requests.get(url, headers=headers, timeout=20)
+                resp.raise_for_status()
+                payload = resp.json()
+                # Parse common shapes: {"data": [{"id": ...}]}, list[str], list[dict]
+                if isinstance(payload, dict) and isinstance(payload.get("data"), list):
+                    for m in payload["data"]:
+                        if isinstance(m, dict):
+                            mid = m.get("id") or m.get("name") or m.get("model")
+                            if mid:
+                                model_ids.append(mid)
+                elif isinstance(payload, list):
+                    for m in payload:
+                        if isinstance(m, str):
+                            model_ids.append(m)
+                        elif isinstance(m, dict):
+                            mid = m.get("id") or m.get("name") or m.get("model")
+                            if mid:
+                                model_ids.append(mid)
+                else:
+                    errors.append("Unexpected response format from /models")
+            except Exception as e:
+                errors.append(f"HTTP /models error: {e}")
+
+        # Optional filter for image-only unless --all specified
+        filtered_ids = model_ids if list_all else [m for m in model_ids if _is_image_model(m)]
+
+        # Render table per engine
+        models_table = Table(title=f"📚 Models for '{name}' ({'all' if list_all else 'image-generation only'})")
+        models_table.add_column("Model ID", style="cyan")
+        if filtered_ids:
+            for mid in sorted(set(filtered_ids)):
+                models_table.add_row(mid)
+        else:
+            models_table.add_row("[dim]No models to display[/dim]")
+        console.print(models_table)
+
+        # If nothing shown and we collected errors, surface details to user
+        if not filtered_ids and errors:
+            console.print(
+                Panel(
+                    f"Failed to fetch models for engine '[bold]{name}[/bold]'. Details: "
+                    + " | ".join(errors),
+                    title="[red]Model Fetch Error[/red]",
                 )
-    else:
+            )
+
+    # If neither OpenAI nor requests is available, nudge user to install deps
+    if not OpenAI and _requests is None:
         console.print(
-            "[yellow]openai package not available; cannot fetch models. Install dependencies with `rye sync`.[/yellow]"
+            "[yellow]Neither 'openai' nor 'requests' packages are available; cannot fetch models. Install with `rye sync`.[/yellow]"
         )
 
 
