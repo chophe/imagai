@@ -142,6 +142,13 @@ def generate(
             help="[Stability AI] Generation mode: 'text-to-image' or 'image-to-image'.",
         ),
     ] = None,
+    image_url: Annotated[
+        str,
+        typer.Option(
+            "--image-url",
+            help="[Vision via OpenRouter] Image URL to include for models like Gemini (chat.completions).",
+        ),
+    ] = None,
     verbose: Annotated[
         bool,
         typer.Option(
@@ -163,15 +170,13 @@ def generate(
             console.print("No engines are configured. Please check your .env file.")
         raise typer.Exit(code=1)
 
-    @@
-         if prompt is None:
-             console.print(
-                 "[yellow]Enter your prompt. For multiline, paste or type and then press Ctrl+D (Linux/Mac) or Ctrl+Z then Enter (Windows) to finish:[/yellow]"
-             )
-    -        prompt = sys.stdin.read().strip()
-    +        prompt = sys.stdin.read()
-    +        # Remove ASCII control characters (including \x1a from Windows Ctrl+Z) and trim
-    +        prompt = re.sub(r"[\x00-\x1F\x7F]", " ", prompt).strip()
+    if prompt is None:
+        console.print(
+            "[yellow]Enter your prompt. For multiline, paste or type and then press Ctrl+D (Linux/Mac) or Ctrl+Z then Enter (Windows) to finish:[/yellow]"
+        )
+        prompt = sys.stdin.read()
+        # Remove ASCII control characters (including \x1a from Windows Ctrl+Z) and trim
+        prompt = re.sub(r"[\x00-\x1F\x7F]", " ", prompt).strip()
 
     if selected_engine not in settings.engines:
         console.print(
@@ -203,6 +208,7 @@ def generate(
                 "output_format": output_format,
                 "aspect_ratio": aspect_ratio,
                 "mode": mode,
+                "image_url": image_url,
             }.items()
             if v is not None
         },
@@ -222,13 +228,18 @@ def generate(
                 f"\n[bold red]Error generating image {i + 1}:[/bold red] {result.error}"
             )
         else:
-            success_message = f"Image {i + 1} generated successfully!"
-            if result.saved_path:
-                success_message += f" Saved to: [green]{result.saved_path}[/green]"
-            elif result.image_url:
-                success_message += f" URL: [blue]{result.image_url}[/blue] (Save failed or not requested via b64_json for direct save)"
-            elif result.image_b64_json:
-                success_message += " (b64_json received, save failed or not configured for specific path)"
+            # Determine if we have any image payload
+            has_image_payload = bool(result.saved_path or result.image_url or result.image_b64_json)
+            if has_image_payload:
+                success_message = f"Image {i + 1} generated successfully!"
+                if result.saved_path:
+                    success_message += f" Saved to: [green]{result.saved_path}[/green]"
+                elif result.image_url:
+                    success_message += f" URL: [blue]{result.image_url}[/blue] (Save failed or not requested via b64_json for direct save)"
+                elif result.image_b64_json:
+                    success_message += " (b64_json received, save failed or not configured for specific path)"
+            else:
+                success_message = f"Response {i + 1} received from model (no image payload)."
             console.print(
                 Panel(
                     success_message,
@@ -236,6 +247,14 @@ def generate(
                     expand=False,
                 )
             )
+            if getattr(result, "text_content", None):
+                console.print(
+                    Panel(
+                        result.text_content,
+                        title="[bold cyan]Model Response[/bold cyan]",
+                        expand=False,
+                    )
+                )
 
 
 @app.command(name="list-engines")

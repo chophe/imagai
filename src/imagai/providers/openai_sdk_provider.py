@@ -1,4 +1,5 @@
 import httpx
+import os
 from openai import OpenAI, AsyncOpenAI
 from openai.types.images_response import Image
 from imagai.config import EngineConfig
@@ -28,8 +29,104 @@ class OpenAISDKProvider(BaseImageProvider):
     ) -> List[ImageGenerationResponse]:
         responses: List[ImageGenerationResponse] = []
         try:
+            # Detect OpenRouter endpoint
+            is_openrouter = False
+            if getattr(self.config, "base_url", None):
+                try:
+                    is_openrouter = "openrouter.ai" in str(self.config.base_url)
+                except Exception:
+                    is_openrouter = False
+
+            model_name = self.config.model or "dall-e-3"
+
+            # If using OpenRouter with a Gemini model or chat-only model, use chat.completions
+            if is_openrouter and ("gemini" in model_name.lower()):
+                client = OpenAI(**self.client_params)
+                # Optional OpenRouter ranking headers from env
+                extra_headers = {}
+                ref = os.environ.get("OPENROUTER_HTTP_REFERER")
+                ttl = os.environ.get("OPENROUTER_X_TITLE")
+                if ref:
+                    extra_headers["HTTP-Referer"] = ref
+                if ttl:
+                    extra_headers["X-Title"] = ttl
+
+                # Build messages; allow vision via extra_params.image_url
+                content_items = []
+                if request.prompt:
+                    content_items.append({"type": "text", "text": request.prompt})
+                img_url = None
+                if getattr(request, "extra_params", None):
+                    img_url = request.extra_params.get("image_url")
+                if img_url:
+                    content_items.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": img_url},
+                        }
+                    )
+                messages = [
+                    {
+                        "role": "user",
+                        "content": content_items
+                        if content_items
+                        else [{"type": "text", "text": request.prompt or ""}],
+                    }
+                ]
+
+                if request.verbose:
+                    print("--- OpenRouter Chat.Completions Request ---")
+                    try:
+                        print(
+                            json.dumps(
+                                {
+                                    "model": model_name,
+                                    "messages": messages,
+                                    "extra_headers": extra_headers or None,
+                                },
+                                indent=2,
+                            )
+                        )
+                    except Exception:
+                        print({"model": model_name, "messages": messages})
+                    print("------------------------------------------")
+
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    extra_headers=extra_headers or None,
+                    extra_body={},
+                )
+
+                # Extract text content
+                try:
+                    content = completion.choices[0].message.content
+                except Exception:
+                    content = None
+
+                resp = ImageGenerationResponse()
+                if content:
+                    resp.text_content = content
+                else:
+                    resp.error = (
+                        "No text content returned from OpenRouter chat completion."
+                    )
+                # Include usage if available
+                usage = getattr(completion, "usage", None)
+                if usage is not None:
+                    try:
+                        resp.usage = (
+                            usage.model_dump()
+                            if hasattr(usage, "model_dump")
+                            else dict(usage)
+                        )
+                    except Exception:
+                        resp.usage = None
+                responses.append(resp)
+                return responses
+
             kwargs = {
-                "model": self.config.model or "dall-e-3",
+                "model": model_name,
                 "prompt": request.prompt,
                 "n": request.n or 1,
                 "size": request.size or "1024x1024",
@@ -58,46 +155,29 @@ class OpenAISDKProvider(BaseImageProvider):
                 ]
                 extra_body = {}
 
-                # Populate extra_body from request.extra_params if they are provided
-                # This assumes 'request' has an 'extra_params' attribute (e.g., a dictionary)
-                # containing additional parameters passed from the CLI or other sources.
-
                 # Populate stability-specific params directly into kwargs from request.extra_params if provided
                 if hasattr(request, "extra_params") and request.extra_params:
                     for key in stability_specific_params:
-                        if (
-                            key in request.extra_params
-                            and request.extra_params[key] is not None
-                        ):
+                        if key in request.extra_params and request.extra_params[key] is not None:
                             extra_body[key] = request.extra_params[key]
 
                 # Handle 'mode' parameter logic for Stability AI
-                # If user explicitly provided 'mode' via extra_params, it's already in extra_body.
-                # Otherwise, apply specific defaults based on model type.
                 if "mode" not in extra_body:
-                    # For SD3 models, do not add 'mode' by default.
-                    # It should be explicitly set by the user if needed (e.g., for 'image-to-image').
-                    # For other (non-SD3) stability models, default to "text-to-image".
                     if "sd3" not in self.config.model.lower():
                         extra_body["mode"] = "text-to-image"
 
                 # Handle potential conflict between 'size' and 'aspect_ratio'
-                # If 'aspect_ratio' is provided (now in kwargs), 'size' might be redundant or conflicting.
                 if "aspect_ratio" in extra_body and "size" in kwargs:
                     del kwargs["size"]  # Prefer aspect_ratio if explicitly provided
 
-                # Add the collected stability-specific parameters to the API call via extra_body
                 if extra_body:
                     kwargs["extra_body"] = extra_body
 
             if request.verbose:
                 print("--- API Request Body ---")
                 try:
-                    # Attempt to serialize with indent for readability
-                    # Handle potential non-serializable items gracefully if any were to be added later
                     print(json.dumps(kwargs, indent=2, default=str))
                 except TypeError:
-                    # Fallback for any unexpected non-serializable content
                     print(kwargs)
                 print("------------------------")
 
