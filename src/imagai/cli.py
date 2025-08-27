@@ -5,6 +5,7 @@ from rich.table import Table
 from rich.panel import Panel
 import asyncio
 import sys
++import re
 
 from imagai import __version__
 from imagai.core import generate_image_core
@@ -162,11 +163,15 @@ def generate(
             console.print("No engines are configured. Please check your .env file.")
         raise typer.Exit(code=1)
 
-    if prompt is None:
-        console.print(
-            "[yellow]Enter your prompt. For multiline, paste or type and then press Ctrl+D (Linux/Mac) or Ctrl+Z then Enter (Windows) to finish:[/yellow]"
-        )
-        prompt = sys.stdin.read().strip()
+    @@
+         if prompt is None:
+             console.print(
+                 "[yellow]Enter your prompt. For multiline, paste or type and then press Ctrl+D (Linux/Mac) or Ctrl+Z then Enter (Windows) to finish:[/yellow]"
+             )
+    -        prompt = sys.stdin.read().strip()
+    +        prompt = sys.stdin.read()
+    +        # Remove ASCII control characters (including \x1a from Windows Ctrl+Z) and trim
+    +        prompt = re.sub(r"[\x00-\x1F\x7F]", " ", prompt).strip()
 
     if selected_engine not in settings.engines:
         console.print(
