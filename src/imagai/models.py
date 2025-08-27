@@ -28,3 +28,5 @@ class ImageGenerationResponse(BaseModel):
     error: Optional[str] = None
     usage: Optional[dict] = None
     estimated_cost: Optional[dict] = None
+    # For OpenRouter chat-based responses (e.g., Gemini vision)
+    text_content: Optional[str] = None
