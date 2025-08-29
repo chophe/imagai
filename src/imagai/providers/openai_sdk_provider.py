@@ -73,6 +73,12 @@ class OpenAISDKProvider(BaseImageProvider):
                         else [{"type": "text", "text": request.prompt or ""}],
                     }
                 ]
+                
+                # Check if this is an image generation model
+                is_image_model = "image" in model_name.lower()
+                extra_body = {}
+                if is_image_model:
+                    extra_body["modalities"] = ["image", "text"]
 
                 if request.verbose:
                     print("--- OpenRouter Chat.Completions Request ---")
@@ -95,22 +101,44 @@ class OpenAISDKProvider(BaseImageProvider):
                     model=model_name,
                     messages=messages,
                     extra_headers=extra_headers or None,
-                    extra_body={},
+                    extra_body=extra_body,
                 )
 
-                # Extract text content
+                # Extract content and images from response
                 try:
-                    content = completion.choices[0].message.content
+                    message = completion.choices[0].message
+                    content = message.content
+                    images = getattr(message, "images", None)
                 except Exception:
                     content = None
+                    images = None
 
                 resp = ImageGenerationResponse()
+                
+                # Handle image generation models
+                if is_image_model and images:
+                    # Extract base64 image data from the first image
+                    try:
+                        image_data = images[0]["image_url"]["url"]
+                        if image_data.startswith("data:image/"):
+                            # Extract base64 data from data URL
+                            base64_data = image_data.split(",", 1)[1]
+                            resp.image_b64_json = base64_data
+                        else:
+                            resp.image_url = image_data
+                    except (KeyError, IndexError, TypeError) as e:
+                        resp.error = f"Failed to extract image data: {e}"
+                
+                # Always include text content if available
                 if content:
                     resp.text_content = content
-                else:
+                
+                # Set error if no content was found
+                if not content and not (is_image_model and images):
                     resp.error = (
-                        "No text content returned from OpenRouter chat completion."
+                        "No content returned from OpenRouter chat completion."
                     )
+                
                 # Include usage if available
                 usage = getattr(completion, "usage", None)
                 if usage is not None:
