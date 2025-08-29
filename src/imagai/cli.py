@@ -5,7 +5,7 @@ from rich.table import Table
 from rich.panel import Panel
 import asyncio
 import sys
-+import re
+import re
 
 from imagai import __version__
 from imagai.core import generate_image_core

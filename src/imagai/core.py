@@ -33,15 +33,15 @@ async def generate_image_core(
             if api_response.error:
                 final_responses.append(api_response)
                 continue
-+            # If we received a text-only response (e.g., OpenRouter chat-based vision),
-+            # skip image-saving logic and return the text content without error.
-+            if (
-+                getattr(api_response, "text_content", None)
-+                and not getattr(api_response, "image_url", None)
-+                and not getattr(api_response, "image_b64_json", None)
-+            ):
-+                final_responses.append(api_response)
-+                continue
+            # If we received a text-only response (e.g., OpenRouter chat-based vision),
+            # skip image-saving logic and return the text content without error.
+            if (
+                getattr(api_response, "text_content", None)
+                and not getattr(api_response, "image_url", None)
+                and not getattr(api_response, "image_b64_json", None)
+            ):
+                final_responses.append(api_response)
+                continue
             base_filename = request.output_filename
             output_ext = "png"
             if base_filename:
