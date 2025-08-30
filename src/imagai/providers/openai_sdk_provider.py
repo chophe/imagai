@@ -89,6 +89,7 @@ class OpenAISDKProvider(BaseImageProvider):
                                     "model": model_name,
                                     "messages": messages,
                                     "extra_headers": extra_headers or None,
+                                    "extra_body": extra_body if extra_body else None,
                                 },
                                 indent=2,
                             )
@@ -109,29 +110,50 @@ class OpenAISDKProvider(BaseImageProvider):
                     message = completion.choices[0].message
                     content = message.content
                     images = getattr(message, "images", None)
-                except Exception:
+                    
+                    # Debug output
+                    if request.verbose:
+                        print(f"DEBUG: Full completion object: {completion}")
+                        print(f"DEBUG: message attributes: {dir(message)}")
+                        print(f"DEBUG: content: {content}")
+                        print(f"DEBUG: images: {images}")
+                        print(f"DEBUG: message dict: {message.model_dump() if hasattr(message, 'model_dump') else 'no model_dump'}")
+                        if hasattr(message, 'tool_calls'):
+                            print(f"DEBUG: tool_calls: {message.tool_calls}")
+                except Exception as e:
+                    if request.verbose:
+                        print(f"DEBUG: Exception extracting response: {e}")
                     content = None
                     images = None
 
                 resp = ImageGenerationResponse()
                 
-                # Handle image generation models
-                if is_image_model and images:
-                    # Extract base64 image data from the first image
+                # Handle image generation models - check if content contains base64 image data
+                if is_image_model and content and content.startswith("data:image/"):
+                    # Extract base64 data from data URL
+                    try:
+                        base64_data = content.split(",", 1)[1]
+                        resp.image_b64_json = base64_data
+                        if request.verbose:
+                            print(f"DEBUG: Extracted base64 image data (length: {len(base64_data)})")
+                    except (IndexError, TypeError) as e:
+                        resp.error = f"Failed to extract image data from content: {e}"
+                        resp.text_content = content  # Fallback to text
+                elif is_image_model and images:
+                    # Fallback: try to extract from images field (original logic)
                     try:
                         image_data = images[0]["image_url"]["url"]
                         if image_data.startswith("data:image/"):
-                            # Extract base64 data from data URL
                             base64_data = image_data.split(",", 1)[1]
                             resp.image_b64_json = base64_data
                         else:
                             resp.image_url = image_data
                     except (KeyError, IndexError, TypeError) as e:
                         resp.error = f"Failed to extract image data: {e}"
-                
-                # Always include text content if available
-                if content:
-                    resp.text_content = content
+                else:
+                    # Regular text content
+                    if content:
+                        resp.text_content = content
                 
                 # Set error if no content was found
                 if not content and not (is_image_model and images):
