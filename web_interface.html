@@ -207,6 +207,100 @@
             margin-top: 5px;
             font-style: italic;
         }
+        
+        /* Image Upload Styles */
+        .image-upload-container {
+            position: relative;
+        }
+        
+        .image-upload-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        .image-upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            background: #fafafa;
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-upload-area:hover {
+            border-color: #007bff;
+            background: #f0f8ff;
+        }
+        
+        .image-upload-area.dragover {
+            border-color: #007bff;
+            background: #e3f2fd;
+            transform: scale(1.02);
+        }
+        
+        .upload-placeholder {
+            color: #666;
+        }
+        
+        .upload-icon {
+            font-size: 2em;
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .upload-placeholder p {
+            margin: 10px 0 5px 0;
+            font-weight: 500;
+        }
+        
+        .upload-placeholder small {
+            color: #999;
+        }
+        
+        .image-preview {
+            position: relative;
+            width: 100%;
+        }
+        
+        .image-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .remove-image {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+        
+        .remove-image:hover {
+            background: #ff3742;
+            transform: scale(1.1);
+        }
 
         @media (max-width: 768px) {
             .form-grid {
@@ -241,6 +335,25 @@
                         <label for="prompt">Prompt *</label>
                         <textarea id="prompt" name="prompt" placeholder="Enter your image generation prompt here..." required></textarea>
                         <div class="help-text">Describe the image you want to generate</div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="image_input">Input Image (Optional)</label>
+                        <div class="image-upload-container">
+                            <input type="file" id="image_input" name="image_input" accept="image/*" class="image-upload-input">
+                            <div class="image-upload-area" id="image_upload_area">
+                                <div class="upload-placeholder">
+                                    <span class="upload-icon">📷</span>
+                                    <p>Click to upload an image or drag & drop</p>
+                                    <small>Supports: JPG, PNG, GIF, WebP</small>
+                                </div>
+                                <div class="image-preview" id="image_preview" style="display: none;">
+                                    <img id="preview_img" src="" alt="Preview">
+                                    <button type="button" class="remove-image" id="remove_image">✕</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="help-text">Upload an image for image-to-image generation</div>
                     </div>
                     
                     <div class="form-group">
@@ -516,16 +629,24 @@
             const requestData = {};
             
             // Get all form values
-            const elements = document.querySelectorAll('#imageForm input, #imageForm select, #imageForm textarea');
-            elements.forEach(element => {
-                if (element.type === 'checkbox') {
-                    if (element.checked) {
-                        requestData[element.name] = true;
-                    }
-                } else if (element.value && element.value.trim()) {
-                    requestData[element.name] = element.value.trim();
-                }
-            });
+             const elements = document.querySelectorAll('#imageForm input, #imageForm select, #imageForm textarea');
+             elements.forEach(element => {
+                 if (element.type === 'file') {
+                     // Skip file inputs, we handle image data separately
+                     return;
+                 } else if (element.type === 'checkbox') {
+                     if (element.checked) {
+                         requestData[element.name] = true;
+                     }
+                 } else if (element.value && element.value.trim()) {
+                     requestData[element.name] = element.value.trim();
+                 }
+             });
+             
+             // Add uploaded image data if available
+             if (uploadedImageData) {
+                 requestData.input_image = uploadedImageData;
+             }
             
             outputElement.textContent = `🚀 Starting image generation...\n📝 Prompt: ${requestData.prompt}\n🤖 Engine: ${requestData.engine || 'default'}\n`;
             
@@ -652,10 +773,98 @@
             }
         }
         
+        // Image upload functionality
+        let uploadedImageData = null;
+        
+        function initializeImageUpload() {
+            const imageInput = document.getElementById('image_input');
+            const uploadArea = document.getElementById('image_upload_area');
+            const imagePreview = document.getElementById('image_preview');
+            const previewImg = document.getElementById('preview_img');
+            const removeBtn = document.getElementById('remove_image');
+            const uploadPlaceholder = uploadArea.querySelector('.upload-placeholder');
+            
+            // File input change handler
+            imageInput.addEventListener('change', handleImageSelect);
+            
+            // Drag and drop handlers
+            uploadArea.addEventListener('dragover', handleDragOver);
+            uploadArea.addEventListener('dragleave', handleDragLeave);
+            uploadArea.addEventListener('drop', handleDrop);
+            
+            // Remove image handler
+            removeBtn.addEventListener('click', removeImage);
+            
+            function handleImageSelect(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    processImageFile(file);
+                }
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        imageInput.files = files;
+                        processImageFile(file);
+                    } else {
+                        alert('Please upload an image file.');
+                    }
+                }
+            }
+            
+            function processImageFile(file) {
+                // Validate file size (max 10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('Image file is too large. Please choose a file smaller than 10MB.');
+                    return;
+                }
+                
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select a valid image file.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImageData = e.target.result;
+                    previewImg.src = uploadedImageData;
+                    uploadPlaceholder.style.display = 'none';
+                    imagePreview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            function removeImage() {
+                uploadedImageData = null;
+                imageInput.value = '';
+                previewImg.src = '';
+                imagePreview.style.display = 'none';
+                uploadPlaceholder.style.display = 'block';
+            }
+        }
+        
         // Load settings and engines on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadSettings();
             loadEngines();
+            initializeImageUpload();
         });
     </script>
 </body>

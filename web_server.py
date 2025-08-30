@@ -86,6 +86,9 @@ def generate_image():
         prompt = data['prompt']
         engine = data.get('engine') or settings.default_engine
         
+        # Input image for image-to-image generation
+        input_image = data.get('input_image')
+        
         if not engine:
             return jsonify({
                 'success': False,
@@ -119,6 +122,36 @@ def generate_image():
                     extra_params[param_key] = data[key]
         
         # Create request object
+        image_request = ImageGenerationRequest(
+            prompt=prompt,
+            engine=engine,
+            output_filename=data.get('output'),
+            n=int(data.get('n', 1)),
+            size=data.get('size', '1024x1024'),
+            quality=data.get('quality', 'standard'),
+            style=data.get('style', 'vivid'),
+            response_format=data.get('response_format', 'b64_json'),
+            extra_params=extra_params,
+            verbose=data.get('verbose', False),
+            auto_filename=data.get('auto_filename', False),
+            random_filename=data.get('random_filename', False)
+        )
+        
+        # Process input image if provided
+        if input_image:
+            # Convert base64 data URL to bytes
+            if input_image.startswith('data:image/'):
+                # Extract base64 data from data URL
+                header, encoded = input_image.split(',', 1)
+                image_data = base64.b64decode(encoded)
+                # Add to extra_params for the core function
+                extra_params['input_image'] = image_data
+            else:
+                # Assume it's already base64 encoded
+                image_data = base64.b64decode(input_image)
+                extra_params['input_image'] = image_data
+        
+        # Update the request object with processed input image
         image_request = ImageGenerationRequest(
             prompt=prompt,
             engine=engine,
