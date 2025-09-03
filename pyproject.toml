@@ -36,3 +36,4 @@ packages = ["src/imagai"]
 
 [project.scripts]
 imagai = "imagai.cli:app"
+imagai-web = "imagai.web_server:main"
