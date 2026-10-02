@@ -76,28 +76,40 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENV-01 | TBD | Pending |
-| ENV-02 | TBD | Pending |
-| ENV-03 | TBD | Pending |
-| ENV-04 | TBD | Pending |
-| SEC-01 | TBD | Pending |
-| SEC-02 | TBD | Pending |
-| SEC-03 | TBD | Pending |
-| SEC-04 | TBD | Pending |
-| ERR-01 | TBD | Pending |
-| ERR-02 | TBD | Pending |
-| CFG-01 | TBD | Pending |
-| CFG-02 | TBD | Pending |
-| CFG-03 | TBD | Pending |
-| ARCH-01 | TBD | Pending |
-| ARCH-02 | TBD | Pending |
-| ARCH-03 | TBD | Pending |
+| ENV-01 | Phase 1 | Pending |
+| ENV-02 | Phase 1 | Pending |
+| ENV-03 | Phase 1 | Pending |
+| ENV-04 | Phase 1 | Pending |
+| SEC-01 | Phase 2 | Pending |
+| SEC-02 | Phase 2 | Pending |
+| SEC-03 | Phase 3 | Pending |
+| SEC-04 | Phase 3 | Pending |
+| ERR-01 | Phase 4 | Pending |
+| ERR-02 | Phase 4 | Pending |
+| CFG-01 | Phase 5 | Pending |
+| CFG-02 | Phase 5 | Pending |
+| CFG-03 | Phase 1 | Pending |
+| ARCH-01 | Phase 6 | Pending |
+| ARCH-02 | Phase 6 | Pending |
+| ARCH-03 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 17 total
-- Mapped to phases: 0
-- Unmapped: 17 ⚠️ (expected — filled by the roadmap step)
+- v1 requirements: 16 total
+- Mapped to phases: 16
+- Unmapped: 0
+
+**Phase assignments:**
+- Phase 1 — Runnable Toolchain: ENV-01, ENV-02, ENV-03, ENV-04, CFG-03
+- Phase 2 — Path Containment: SEC-01, SEC-02
+- Phase 3 — HTTP Boundary: SEC-03, SEC-04
+- Phase 4 — Error Propagation: ERR-01, ERR-02
+- Phase 5 — Configuration Cleanup: CFG-01, CFG-02
+- Phase 6 — Provider Registry: ARCH-01, ARCH-02, ARCH-03
+
+> **Count correction (2026-10-02):** the initial definition of this file stated "17 total"
+> v1 requirements, but only 16 REQ-IDs were defined. All 16 are mapped above — the earlier
+> count was an overcount, not a missing requirement.
 
 ---
 *Requirements defined: 2026-10-02*
-*Last updated: 2026-10-02 after initial definition*
+*Last updated: 2026-10-02 after roadmap creation (traceability populated; count corrected to 16)*
