@@ -40,7 +40,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. `.python-version`, `requires-python`, and the uv lockfile all name the same Python version, and `uv run python -V` reports that version (ENV-02)
   3. `README.md`, `pyproject.toml`, and the repository root contain no rye commands, no `[tool.rye]` section, and no rye lockfile — verifiable by a single `rg -n rye` returning nothing outside historical planning notes (ENV-03)
   4. A clean install's `python -c "import typing_extensions"` succeeds because `typing_extensions` is declared in `pyproject.toml` or the import was removed — not because a transitive package happened to pull it in (ENV-04)
-  5. `requires-python` reads `>=3.9`, and the project resolves and installs on a 3.9 interpreter (CFG-03)
+  5. `requires-python` reads `>=3.9`, and every import declared in `pyproject.toml` is satisfiable on the pinned 3.12.9 interpreter (CFG-03) — *revised 2026-10-02: this criterion previously required resolving on a 3.9 interpreter. Python 3.9 reached EOL in October 2025, and `requirements.lock` carries zero `python_version` markers, so 3.9 was never actually verified. See `01-CONTEXT.md` D-05/D-06.*
 **Plans**: 3 plans (TBD at planning)
 
 Notes:
