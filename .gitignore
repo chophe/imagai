@@ -44,3 +44,6 @@ venv.bak
 
 # Generated files
 generated_images/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
