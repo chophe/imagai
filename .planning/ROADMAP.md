@@ -121,7 +121,18 @@ Notes:
   7. No `CORS(app)` call remains and `flask-cors` is absent from `pyproject.toml`; a cross-origin `POST /api/generate-cli` receives no CORS grant — verified by a test (SEC-07)
   8. `POST /api/generate-cli` does not return an image that already existed in `settings.output_dir` before the call — verified by a test that seeds a file, calls the endpoint, and asserts it is absent from the response (SEC-08)
 
-**Plans**: TBD at planning
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02.5-01-PLAN.md — Tracer: `/api/generate-cli` runs an allow-listed argv with `shell=False`; before/after image diff; SEC-05 + SEC-08 tests
+**Wave 2** *(blocked on Wave 1 — same `web_server.py`)*
+
+- [ ] 02.5-02-PLAN.md — `main()` defined above the `__main__` guard with loopback/no-debug defaults; `CORS(app)` and the `flask_cors` import removed
+**Wave 3** *(blocked on Wave 2 — its repo-wide grep gates depend on the code changes)*
+
+- [ ] 02.5-03-PLAN.md — `flask-cors` dropped from `pyproject.toml` + `uv.lock`; the five falsified doc claims corrected
 
 Notes:
 
@@ -261,7 +272,7 @@ Phases execute in numeric order: 1 → 2 → 2.5 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Runnable Toolchain | 3/3 | Complete    | 2026-10-04 |
 | 2. Path Containment | 2/2 | Complete    | 2026-10-07 |
-| 2.5. Web Server Safety | 0/1 | Not started | - |
+| 2.5. Web Server Safety | 0/3 | Not started | - |
 | 3. HTTP Boundary | 0/3 | Not started | - |
 | 4. Error Propagation | 0/2 | Not started | - |
 | 5. Configuration Cleanup | 0/2 | Not started | - |
