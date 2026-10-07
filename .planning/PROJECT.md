@@ -24,11 +24,11 @@ Fast prompt-to-image. If everything else fails, turning a prompt into an image m
 - ✓ Migrate toolchain from rye to uv — a clean checkout installs, runs, and tests with uv only
       (`uv sync` + `uv run pytest` pass on the pinned 3.12.9 interpreter; no rye remnants) — Phase 1
 - ✓ `requires-python = ">=3.9"` floor and stdlib `typing.Annotated` import (ENV-04, CFG-03) — Phase 1
+- ✓ Path containment — the image save pipeline can only write inside `settings.output_dir`
+      (SEC-01, SEC-02); `web_server.py` reads and serves the same directory — Phase 2
 
 ### Active
 
-- [ ] Fix arbitrary file write — `output_filename` is never sanitized (`models.py:8`) and
-      `core.py:76` does `Path(output_dir) / filename`, so an absolute path replaces the base
 - [ ] Fix `NameError` — `web_server.py:364` calls `main()` four lines before its definition at `:368`
 - [ ] Add request/response validation at the HTTP boundary
 - [ ] Surface failures instead of swallowing them (broad `except Exception` paths)
@@ -63,7 +63,11 @@ crossing each boundary. The `core.py` seam genuinely is shared by both front end
 real strength worth preserving during refactoring.
 
 **Known defects and debt** (detail in `.planning/codebase/CONCERNS.md`, 775 lines):
-- The path-traversal write above, reachable via `POST /api/generate`
+- ~~The path-traversal write, reachable via `POST /api/generate`~~ — fixed in Phase 2; every path
+  now resolves under `settings.output_dir`
+- **Command injection in `/api/generate-cli`** — `web_server.py:239-255` passes user input to
+  `subprocess.run(..., shell=True)` behind a `startswith` guard that `imagai; <cmd>` bypasses.
+  Found in Phase 2's code review; **not yet assigned to a phase** — must not be forgotten
 - The `NameError` above, masked in normal use because the `imagai-web` console script calls
   `main()` correctly
 - No provider registry — `core.py` hardcodes `OpenAISDKProvider`, so a new backend means editing
@@ -74,7 +78,9 @@ real strength worth preserving during refactoring.
 - ~~`typing_extensions` imported at `cli.py:2` but undeclared in `pyproject.toml`~~ — fixed in
   Phase 1 (now `from typing import Annotated`)
 - No linter or formatter configured; unused imports go unnoticed
-- Test coverage is one file (`tests/test_cli.py`)
+- Test coverage was one placeholder file; Phase 2 added `tests/test_containment.py` (13 tests)
+- Unit suite has a live-API dependency — `test_llm_filename_contained` calls a real engine, so
+  local runs need `-k "not llm"`
 
 **Prior work:** `docs/architecture.md`, `docs/testing.md`, `docs/dependencies.md`, and
 `docs/code-quality.md` were written in an earlier session. Two claims in them were found wrong
@@ -122,4 +128,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-04 after Phase 1*
+*Last updated: 2026-10-07 after Phase 2*

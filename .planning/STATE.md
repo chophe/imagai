@@ -21,10 +21,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-04)
+See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Fast prompt-to-image. If everything else fails, turning a prompt into an image must still work.
-**Current focus:** Phase 2 — Path Containment
+**Current focus:** Phase 3 — HTTP Boundary
 
 ## Current Position
 
@@ -90,6 +90,13 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 02]: _contained_path helper rejects absolute paths, .. traversal, and paths outside settings.output_dir
 - [Phase 02]: Both save functions return None (no exception) on containment rejection per D-04
 - [Phase 02]: Containment check is first statement in try block, before any I/O or network activity
+- [Phase 02]: CR-01 fix — `_contained_path` must NOT blanket-reject absolute candidates. `core.py`
+  builds `Path(settings.output_dir) / name`, which is absolute whenever `output_dir` is, so the
+  original `is_absolute()` early-reject made every save fail. Bare-basename is now enforced by
+  `canonical_output.parent != canonical_root` (commit `558c314`, regression test at
+  `tests/test_containment.py:119`).
+- [Phase 02]: Verifier rejected code review finding WR-01 — it proposed allowing anchored
+  subdirectories, which contradicts D-02's bare-basename rule. The existing test is correct.
 
 ### Pending Todos
 
@@ -101,8 +108,20 @@ None yet.
 - **Resolved — Phase 1 was the hard blocker.** Phase 1 shipped the uv toolchain: `uv sync` + `uv run pytest` pass from a clean checkout on the pinned 3.12.9 interpreter, rye lockfiles deleted, `typing.Annotated` from stdlib. The tool now runs.
 - **Requirement count discrepancy.** REQUIREMENTS.md stated "17 total" v1 requirements; 16 REQ-IDs exist. All 16 are mapped — the count was an overcount, not a missing ID. Coverage line corrected during this step.
 - **Phase 5 config risk (highest technical risk in the milestone).** The `os.environ` loop at `config.py:38-54` exists to work around nested-delimiter parsing for engine names containing `__` (e.g. `openai_dalle3`). Removing it without a parametrized equivalence test risks a silent config regression no existing test would catch.
-- **Phase 2 open question for planning.** `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` rather than reading `settings.output_dir`, which SEC-02 names as the containment root. Needs a decision in Phase 2.
-- **Test infrastructure is thin.** `tests/test_cli.py` holds two `assert True` placeholders. The regression tests later phases depend on must be written, not just run.
+- **Resolved — Phase 2 open question.** `UPLOAD_FOLDER` is now `Path(settings.output_dir)`
+  (`web_server.py:33`), so read/serve and write agree on one directory (D-05, shipped).
+- **UNASSIGNED — command injection in `/api/generate-cli`.** `web_server.py:239-255` passes user
+  input to `subprocess.run(..., shell=True)` behind a `startswith` guard that `imagai; <cmd>`
+  bypasses → RCE. Found in Phase 2's code review (CR-02). **No phase currently owns this.**
+  Phase 3 (HTTP Boundary) is the natural home — decide at Phase 3 discuss whether to fold it in
+  or add a phase.
+- **UNASSIGNED — `NameError` in `web_server.py`.** `main()` is called at `:364` four lines before
+  its definition at `:368` (CR-03). Masked in normal use because the `imagai-web` console script
+  calls `main()` correctly, so it only bites `python -m` style entry. Originally Phase 4's scope.
+- **Test suite has a live-API dependency.** `test_llm_filename_contained` calls a real engine and
+  hangs the run. Use `uv run pytest -k "not llm"` locally. Fixing it is unscheduled.
+- **Test infrastructure is thin.** `tests/test_cli.py` still holds two `assert True` placeholders,
+  though Phase 2 added `tests/test_containment.py` (13 tests).
 - **Unverified `graft/` index.** `AGENTS.md` and `GEMINI.md` assert the repo is indexed; a `graft/` directory exists but its content is unconfirmed. Do not let a stale index block implementation.
 
 ## Deferred Items
