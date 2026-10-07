@@ -10,10 +10,10 @@ capability; everything here makes the tool runnable, correct, and maintainable.
 
 ### Environment & Toolchain
 
-- [ ] **ENV-01**: A developer on macOS can install all dependencies and run the test suite with a single documented uv command
-- [ ] **ENV-02**: The Python version is consistent across `.python-version`, `pyproject.toml`, and the lockfile, so a clean install resolves the same interpreter the project targets
-- [ ] **ENV-03**: `README.md` documents the uv workflow; no rye commands, rye lockfiles, or `[tool.rye]` configuration remain
-- [ ] **ENV-04**: `typing_extensions` is declared in `pyproject.toml` or its import is removed, so a clean install does not depend on a transitive package
+- [x] **ENV-01**: A developer on macOS can install all dependencies and run the test suite with a single documented uv command
+- [x] **ENV-02**: The Python version is consistent across `.python-version`, `pyproject.toml`, and the lockfile, so a clean install resolves the same interpreter the project targets
+- [x] **ENV-03**: `README.md` documents the uv workflow; no rye commands, rye lockfiles, or `[tool.rye]` configuration remain
+- [x] **ENV-04**: `typing_extensions` is declared in `pyproject.toml` or its import is removed, so a clean install does not depend on a transitive package
 
 ### Security & Correctness
 
@@ -31,7 +31,7 @@ capability; everything here makes the tool runnable, correct, and maintainable.
 
 - [ ] **CFG-01**: Engine configuration is derived solely from pydantic-settings; the manual `os.environ` parsing loop in `config.py` is removed with no loss of supported configuration
 - [ ] **CFG-02**: Importing `imagai.config` creates no directories and mutates no global state as a side effect
-- [ ] **CFG-03**: `requires-python` in `pyproject.toml` states the real floor (>=3.9, per pydantic 2.11) rather than the current incorrect `>=3.8`
+- [x] **CFG-03**: `requires-python` in `pyproject.toml` states the real floor (>=3.9, per pydantic 2.11) rather than the current incorrect `>=3.8`
 
 ### Architecture
 
@@ -76,10 +76,10 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ENV-01 | Phase 1 | Pending |
-| ENV-02 | Phase 1 | Pending |
-| ENV-03 | Phase 1 | Pending |
-| ENV-04 | Phase 1 | Pending |
+| ENV-01 | Phase 1 | Complete |
+| ENV-02 | Phase 1 | Complete |
+| ENV-03 | Phase 1 | Complete |
+| ENV-04 | Phase 1 | Complete |
 | SEC-01 | Phase 2 | Pending |
 | SEC-02 | Phase 2 | Pending |
 | SEC-03 | Phase 3 | Pending |
@@ -88,17 +88,19 @@ Populated during roadmap creation.
 | ERR-02 | Phase 4 | Pending |
 | CFG-01 | Phase 5 | Pending |
 | CFG-02 | Phase 5 | Pending |
-| CFG-03 | Phase 1 | Pending |
+| CFG-03 | Phase 1 | Complete |
 | ARCH-01 | Phase 6 | Pending |
 | ARCH-02 | Phase 6 | Pending |
 | ARCH-03 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 16 total
 - Mapped to phases: 16
 - Unmapped: 0
 
 **Phase assignments:**
+
 - Phase 1 — Runnable Toolchain: ENV-01, ENV-02, ENV-03, ENV-04, CFG-03
 - Phase 2 — Path Containment: SEC-01, SEC-02
 - Phase 3 — HTTP Boundary: SEC-03, SEC-04

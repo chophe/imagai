@@ -2,7 +2,7 @@
 
 ## Current setup
 
-- Runner: `pytest >= 7` (dev dependency via `[tool.rye]` in `pyproject.toml`). No pytest config section, no `conftest.py`, no coverage tool (`pytest-cov` not declared).
+- Runner: `pytest >= 7` (dev dependency via `[dependency-groups]` in `pyproject.toml`). No pytest config section, no `conftest.py`, no coverage tool (`pytest-cov` not declared).
 - Tests: single file `tests/test_cli.py` with 2 placeholder tests (`test_app_version`, `test_generate_help`), both `assert True` — they exercise nothing.
 - No CI config (no `.github/`, GitLab, Jenkins, or tox files found).
 - Source under test: ~1540 lines across `cli.py` (421), `web_server.py` (377), `providers/openai_sdk_provider.py` (301), `utils.py` (222), `core.py` (109), `config.py` (58), `models.py` (32).

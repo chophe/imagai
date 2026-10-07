@@ -21,11 +21,12 @@ Fast prompt-to-image. If everything else fails, turning a prompt into an image m
 - ✓ Four filename strategies (manual, LLM-generated, random, prompt-derived) with precedence — existing
 - ✓ Image save pipeline with EXIF/PNG metadata injection (prompt + model) — existing
 - ✓ `list-engines` command with per-engine `/models` probe — existing
+- ✓ Migrate toolchain from rye to uv — a clean checkout installs, runs, and tests with uv only
+      (`uv sync` + `uv run pytest` pass on the pinned 3.12.9 interpreter; no rye remnants) — Phase 1
+- ✓ `requires-python = ">=3.9"` floor and stdlib `typing.Annotated` import (ENV-04, CFG-03) — Phase 1
 
 ### Active
 
-- [ ] Migrate toolchain from rye to uv so the project actually runs (`rye` is not installed;
-      `.venv/` is a non-functional Windows build; ambient Python is 3.13.11 vs pinned 3.12.9)
 - [ ] Fix arbitrary file write — `output_filename` is never sanitized (`models.py:8`) and
       `core.py:76` does `Path(output_dir) / filename`, so an absolute path replaces the base
 - [ ] Fix `NameError` — `web_server.py:364` calls `main()` four lines before its definition at `:368`
@@ -50,9 +51,11 @@ Fast prompt-to-image. If everything else fails, turning a prompt into an image m
 Small, mature Python codebase: 8 source files in `src/imagai/`, 1 test file, ~2,741 lines of
 codebase map in `.planning/codebase/`.
 
-**State of the world right now: the tool does not run.** `rye` is absent from `PATH`, the
-checked-in `.venv/` is a Windows build (`home = C:\Users\aliah\...`, `Scripts/` not `bin/`), and
-neither `imagai` nor `flask` is importable from ambient Python. This is the Phase 1 blocker.
+**State of the world right now: the tool runs under uv.** Phase 1 resolved the toolchain blocker —
+`uv sync` and `uv run pytest` pass from a clean checkout on the pinned 3.12.9 interpreter, the rye
+lockfiles are gone, and `typing_extensions` is no longer imported. The remaining defects below
+(path-traversal write, HTTP validation, error propagation, config cleanup, provider registry) are
+the subject of Phases 2–6.
 
 **Architecture is sound.** Clean layering — presentation (`cli.py`, `web_server.py`) →
 orchestration (`core.py`) → provider (`providers/`) → I/O (`utils.py`), with Pydantic DTOs
@@ -68,7 +71,8 @@ real strength worth preserving during refactoring.
 - Rich rendering leaks into the provider data layer (`openai_sdk_provider.py:249-293`)
 - Blocking sync client inside `async def` (`openai_sdk_provider.py:44`, `:101`)
 - Three module loggers with zero logging configuration
-- `typing_extensions` imported at `cli.py:2` but undeclared in `pyproject.toml`
+- ~~`typing_extensions` imported at `cli.py:2` but undeclared in `pyproject.toml`~~ — fixed in
+  Phase 1 (now `from typing import Annotated`)
 - No linter or formatter configured; unused imports go unnoticed
 - Test coverage is one file (`tests/test_cli.py`)
 
@@ -83,8 +87,9 @@ during mapping and are corrected here: uploads *are* capped by `MAX_CONTENT_LENG
   (don't write outside the output directory) rather than remote exposure — why auth is out of scope
 - **Toolchain**: migrating to uv means `pyproject.toml`, both rye lockfiles, and the README's rye
   commands all need updating together — why they're one phase, not three
-- **Python version**: pinned to 3.12.9, but `pyproject.toml` declares `requires-python = ">=3.8"`
-  while `pydantic 2.11` needs >=3.9 — the declared floor is wrong either way
+- **Python version**: pinned to 3.12.9 via `.python-version`; `requires-python` now reads `>=3.9`
+  (fixed in Phase 1). The floor and the pin are deliberately separate: the floor is the honest
+  declared minimum, the pin is the reproducible dev interpreter
 - **Compatibility**: `pydantic-settings` and Pydantic v2 APIs are assumed throughout; the
   project is already v2-only
 - **Single developer**: no CI, no deployment target, no multi-user requirement
@@ -93,7 +98,7 @@ during mapping and are corrected here: uploads *are* capped by `MAX_CONTENT_LENG
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Migrate rye → uv | rye is not installed, so the documented workflow is unrunnable; uv is already present and much faster | — Pending |
+| Migrate rye → uv | rye is not installed, so the documented workflow is unrunnable; uv is already present and much faster | ✓ Phase 1 — clean checkout installs/runs/tests with uv only |
 | Harden before adding features | Core value is fast prompt-to-image; a broken runtime and a file-write bug undermine it more than a new backend would help | — Pending |
 | No auth on the web server | Localhost dev tool, not a product surface. The path traversal gets fixed as a correctness bug, not framed as a remote vuln | — Pending |
 | Keep the `core.py` orchestration seam | Both front ends already share it; refactoring should preserve it rather than dissolve it | — Pending |
@@ -117,4 +122,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-02 after initialization*
+*Last updated: 2026-10-04 after Phase 1*

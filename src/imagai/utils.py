@@ -23,6 +23,29 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
+def _contained_path(output_path: Path) -> bool:
+    """Check that output_path resolves under settings.output_dir.
+
+    Returns True if the path is contained, False otherwise. Never raises.
+    """
+    try:
+        # Reject traversal attempts (D-02)
+        if ".." in output_path.parts:
+            return False
+        # Canonicalize and verify containment (D-03)
+        canonical_output = output_path.resolve()
+        canonical_root = Path(settings.output_dir).resolve()
+        # Bare basename only: the file must be directly in the output dir (D-02).
+        # This also rejects absolute attack paths (e.g. /tmp/evil.png) because
+        # their parent is not the output dir, while allowing a legitimately
+        # absolute output_dir.
+        if canonical_output.parent != canonical_root:
+            return False
+        return True
+    except Exception:
+        return False
+
+
 async def generate_filename_from_prompt_llm(
     prompt: str, extension: str = "png", verbose: bool = False
 ) -> str:
@@ -156,6 +179,11 @@ async def save_image_from_url(
     image_url: str, output_path: Path, prompt: str = None, model: str = None
 ) -> Optional[Path]:
     try:
+        if not _contained_path(output_path):
+            logger.warning(
+                f"Rejected output path (escapes output directory): {output_path}"
+            )
+            return None
         async with httpx.AsyncClient() as client:
             response = await client.get(image_url)
             response.raise_for_status()
@@ -192,6 +220,11 @@ async def save_image_from_b64(
     b64_json: str, output_path: Path, prompt: str = None, model: str = None
 ) -> Optional[Path]:
     try:
+        if not _contained_path(output_path):
+            logger.warning(
+                f"Rejected output path (escapes output directory): {output_path}"
+            )
+            return None
         image_bytes = base64.b64decode(b64_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         try:

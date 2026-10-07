@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.0",
+  "phases": [
+    {
+      "number": "1",
+      "name": "Runnable Toolchain",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Path Containment",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "HTTP Boundary",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Error Propagation",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Configuration Cleanup",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Provider Registry",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 2 of 6 · executing"
+  },
+  "updated_at": "2026-10-06T00:56:15.938Z"
+}

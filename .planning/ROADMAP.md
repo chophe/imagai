@@ -22,7 +22,7 @@ contracts are pinned by tests.
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Runnable Toolchain** - Migrate rye to uv so a clean checkout installs, runs, and tests
+- [x] **Phase 1: Runnable Toolchain** - Migrate rye to uv so a clean checkout installs, runs, and tests (completed 2026-10-04)
 - [ ] **Phase 2: Path Containment** - The save pipeline can only write inside the configured output directory
 - [ ] **Phase 3: HTTP Boundary** - The web server starts from source and rejects malformed payloads with 4xx
 - [ ] **Phase 4: Error Propagation** - A failed generation reaches the user instead of being logged and dropped
@@ -45,20 +45,20 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A clean install's `python -c "import typing_extensions"` succeeds because `typing_extensions` is declared in `pyproject.toml` or the import was removed — not because a transitive package happened to pull it in (ENV-04)
   5. `requires-python` reads `>=3.9`, and every import declared in `pyproject.toml` is satisfiable on the pinned 3.12.9 interpreter (CFG-03) — *revised 2026-10-02: this criterion previously required resolving on a 3.9 interpreter. Python 3.9 reached EOL in October 2025, and `requirements.lock` carries zero `python_version` markers, so 3.9 was never actually verified. See `01-CONTEXT.md` D-05/D-06.*
 
-**Plans**: 3 plans
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Core toolchain migration: rewrite pyproject.toml, replace rye lockfiles with uv.lock, verify clean install
+- [x] 01-01-PLAN.md — Core toolchain migration: rewrite pyproject.toml, replace rye lockfiles with uv.lock, verify clean install
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Import fix + rye reference cleanup: fix typing_extensions import, update README/docs/web files to uv
+- [x] 01-02-PLAN.md — Import fix + rye reference cleanup: fix typing_extensions import, update README/docs/web files to uv
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — End-to-end verification: grep verification + clean checkout simulation
+- [x] 01-03-PLAN.md — End-to-end verification: grep verification + clean checkout simulation
 
 **Cross-cutting constraints:**
 
@@ -84,13 +84,22 @@ Notes:
   3. Every path handed to `save_image_from_url` / `save_image_from_b64` resolves under `settings.output_dir`, proven by a test that exercises all four filename strategies (manual, LLM-generated, random, prompt-derived) and asserts containment for each (SEC-02)
   4. A legitimate filename such as `my_image.png` is still written to `settings.output_dir/my_image.png`, and the `n > 1` numbered variants still land in the output directory — the fix does not break the happy path (SEC-02)
 
-**Plans**: 2 plans (TBD at planning)
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [x] 02-01-PLAN.md — Containment helper in utils.py + wire into both save functions + SEC-01 rejection tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 02-02-PLAN.md — Unify web_server.py UPLOAD_FOLDER to settings.output_dir + SEC-02 comprehensive tests
 
 Notes:
 
 - The hole is `core.py:76` doing `Path(settings.output_dir) / current_filename` on a never-sanitized `output_filename` (`models.py:8`); an absolute path silently replaces the base. Containment belongs in the save pipeline (`utils.py`), which both front ends share, so the CLI is protected by the same check.
 - Rejection must produce a populated `ImageGenerationResponse.error` (the existing contract), not an exception — Phase 4 formalizes how that error reaches the user.
-- Flag for planning: `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` instead of reading `settings.output_dir`. SEC-02 names `settings.output_dir` as the containment root, so this divergence needs a decision in this phase.
+- `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` — unified to `settings.output_dir` in Plan 02 (D-05).
 
 ### Phase 3: HTTP Boundary
 
@@ -196,8 +205,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Runnable Toolchain | 0/3 | Not started | - |
-| 2. Path Containment | 0/2 | Not started | - |
+| 1. Runnable Toolchain | 3/3 | Complete    | 2026-10-04 |
+| 2. Path Containment | 2/2 | Complete | 2026-10-06 |
 | 3. HTTP Boundary | 0/3 | Not started | - |
 | 4. Error Propagation | 0/2 | Not started | - |
 | 5. Configuration Cleanup | 0/2 | Not started | - |

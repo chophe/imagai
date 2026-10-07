@@ -1,44 +1,44 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.0
-current_phase: 01
-current_phase_name: runnable-toolchain
+current_phase: 2
+current_phase_name: Path Containment
 status: executing
-stopped_at: ROADMAP.md, STATE.md, and REQUIREMENTS.md traceability written and made mutually consistent after resolving a duplicate-write collision
-last_updated: "2026-10-03T19:29:47.700Z"
-last_activity: 2026-10-02
-last_activity_desc: Roadmap created; 16 v1 requirements mapped across 6 phases
-state_head: 9e89100f57ae32780e79e53e69554d191f953ebb
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-10-06T01:15:00Z"
+last_activity: 2026-10-06
+last_activity_desc: Phase 2 Plan 02 complete — web_server UPLOAD_FOLDER unified + SEC-02 comprehensive tests
+state_head: 9364e5bb41165c14fd8a79ce725111c42ecf7120
 progress:
   total_phases: 6
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 4
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-02)
+See: .planning/PROJECT.md (updated 2026-10-04)
 
 **Core value:** Fast prompt-to-image. If everything else fails, turning a prompt into an image must still work.
-**Current focus:** Phase 1 — Runnable Toolchain
+**Current focus:** Phase 2 — Path Containment
 
 ## Current Position
 
-Phase: 01 (runnable-toolchain) — READY TO EXECUTE
-Plan: 0 of 3 in current phase
-Status: Ready to execute
-Last activity: 2026-10-02 — Roadmap created; 16 v1 requirements mapped across 6 phases
+Phase: 2 (Path Containment) — EXECUTING
+Plan: 2 of 2
+Status: Executing Phase 2 (Plan 02 complete)
+Last activity: 2026-10-06 — Phase 2 Plan 02 complete
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 3
 - Average duration: n/a
 - Total execution time: 0.0 hours
 
@@ -46,7 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 3 | - | - |
 
 **Recent Trend:**
 
@@ -54,6 +54,13 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: n/a
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 15m | 3 tasks | 5 files |
+| Phase 01 P02 | 96m | 3 tasks | 6 files |
+| Phase 01 P03 | 5m | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -66,6 +73,21 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - `SEC-01`/`SEC-02` (core-level containment) are kept distinct from `SEC-04` (HTTP schema validation): containment lives in the shared save pipeline so the CLI is protected too, while `SEC-04` is about request-shape validation at the web boundary.
 - Phase 4 (error contracts) is sequenced before Phase 6 (registry) so `ARCH-03`'s regression test freezes known-good error behavior instead of today's swallowing.
 - No `**UI hint**` annotation on any phase. This milestone adds no user-facing capability; Phase 3 touches the HTTP layer only, not visual design.
+- [Phase 01]: Remove [tool.rye] entirely per D-03
+- [Phase 01]: Use PEP 735 [dependency-groups] per D-01
+- [Phase 01]: requires-python >=3.9 per D-04
+- [Phase 01]: Remove requests per D-10
+- [Phase 01]: Keep werkzeug per D-09
+- [Phase 01]: stdlib typing.Annotated per D-07
+- [Phase 01]: Replace all rye references with uv equivalents per D-02
+- [Phase 01]: Use uv run imagai pattern for README commands
+- [Phase 01]: Use uv python pin for Python version switching
+- [Phase 01]: Use uv lock --update-package for lockfile updates
+- [Phase 01]: All 10 checks pass — Phase 1 success criteria fully satisfied
+- [Phase 01]: Verification-only plan — no code changes required
+- [Phase 02]: _contained_path helper rejects absolute paths, .. traversal, and paths outside settings.output_dir
+- [Phase 02]: Both save functions return None (no exception) on containment rejection per D-04
+- [Phase 02]: Containment check is first statement in try block, before any I/O or network activity
 
 ### Pending Todos
 
@@ -74,7 +96,7 @@ None yet.
 ### Blockers/Concerns
 
 - **Resolved — write collision between two roadmapper invocations.** A concurrent invocation wrote ROADMAP.md and STATE.md at 14:54 on 2026-10-02, overwriting this draft and leaving the three planning files mutually inconsistent (REQUIREMENTS.md traced CFG-03 to Phase 1; the competing roadmap put it in Phase 5). This version was restored and the competing draft preserved at `.planning/research/ROADMAP-alternate-2026-10-02.md`. The one substantive difference is the CFG-03 placement. If the orchestrator spawned two roadmappers, only one should proceed.
-- **Phase 1 is the hard blocker.** The tool does not run today: `rye` is absent, `.venv/` is a checked-in Windows build, ambient Python is 3.13.11 vs a 3.12.9 pin.
+- **Resolved — Phase 1 was the hard blocker.** Phase 1 shipped the uv toolchain: `uv sync` + `uv run pytest` pass from a clean checkout on the pinned 3.12.9 interpreter, rye lockfiles deleted, `typing.Annotated` from stdlib. The tool now runs.
 - **Requirement count discrepancy.** REQUIREMENTS.md stated "17 total" v1 requirements; 16 REQ-IDs exist. All 16 are mapped — the count was an overcount, not a missing ID. Coverage line corrected during this step.
 - **Phase 5 config risk (highest technical risk in the milestone).** The `os.environ` loop at `config.py:38-54` exists to work around nested-delimiter parsing for engine names containing `__` (e.g. `openai_dalle3`). Removing it without a parametrized equivalence test risks a silent config regression no existing test would catch.
 - **Phase 2 open question for planning.** `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` rather than reading `settings.output_dir`, which SEC-02 names as the containment root. Needs a decision in Phase 2.
@@ -97,6 +119,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-02 — roadmap creation
-Stopped at: ROADMAP.md, STATE.md, and REQUIREMENTS.md traceability written and made mutually consistent after resolving a duplicate-write collision
-Resume file: None
+Last session: 2026-10-04T14:45:11.133Z
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-configuration-cleanup/05-CONTEXT.md

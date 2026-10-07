@@ -1,5 +1,5 @@
 import typer
-from typing_extensions import Annotated
+from typing import Annotated
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -358,7 +358,7 @@ def list_engines_command(
         if not model_ids and getattr(config, "base_url", None):
             try:
                 if _requests is None:
-                    raise RuntimeError("requests not installed; run `rye add requests && rye sync`.")
+                    raise RuntimeError("requests not installed; run `uv add requests && uv sync`.")
                 url = str(config.base_url).rstrip("/") + "/models"
                 headers = {
                     "Authorization": f"Bearer {config.api_key}",
@@ -413,7 +413,7 @@ def list_engines_command(
     # If neither OpenAI nor requests is available, nudge user to install deps
     if not OpenAI and _requests is None:
         console.print(
-            "[yellow]Neither 'openai' nor 'requests' packages are available; cannot fetch models. Install with `rye sync`.[/yellow]"
+            "[yellow]Neither 'openai' nor 'requests' packages are available; cannot fetch models. Install with `uv sync`.[/yellow]"
         )
 
 

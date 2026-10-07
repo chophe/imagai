@@ -12,10 +12,10 @@ A CLI tool to generate images using various AI APIs, including OpenAI (DALL-E) a
 ## Setup
 
 1.  Clone this repository.
-2.  Ensure [Rye](https://rye-up.com/) is installed.
+2.  Ensure [uv](https://docs.astral.sh/uv/) is installed.
 3.  Install dependencies:
     ```bash
-    rye sync
+    uv sync
     ```
 4.  Create a `.env` file by copying `.env.example` and fill in your API keys:
     ```bash
@@ -25,46 +25,46 @@ A CLI tool to generate images using various AI APIs, including OpenAI (DALL-E) a
 
 ## How to Run
 
-Quick start (with Rye):
+Quick start (with uv):
 
 ```bash
 # 1) Install deps (first time or after changes)
-rye sync
+uv sync
 
 # 2) See CLI help
-rye run imagai --help
+uv run imagai --help
 
 # 3) Generate an image
-rye run imagai generate --prompt "A beautiful sunset over a mountain range"
+uv run imagai generate --prompt "A beautiful sunset over a mountain range"
 ```
 
 Common tasks:
 
 - Run tests
   ```bash
-  rye run pytest -q
+  uv run pytest -q
   ```
 - Add a dependency
   ```bash
-  rye add <package>
+  uv add <package>
   ```
 - Add a dev dependency
   ```bash
-  rye add --dev <package>
+  uv add --dev <package>
   ```
 - Update lockfiles and reinstall
   ```bash
-  rye lock
-  rye sync
+  uv lock
+  uv sync
   ```
 - Build the package (wheel/sdist)
   ```bash
-  rye build
+  uv build
   ```
 
 Note:
-- Python version is pinned via `.python-version`. If needed, you can switch with `rye pin <version>` then `rye sync`.
-- If you want to list configured engines: `rye run imagai list-engines`.
+- Python version is pinned via `.python-version`. If needed, you can switch with `uv python pin <version>` then `uv sync`.
+- If you want to list configured engines: `uv run imagai list-engines`.
 
 ## Usage
 

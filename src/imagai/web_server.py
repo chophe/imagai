@@ -30,7 +30,7 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
-UPLOAD_FOLDER = Path("generated_images")
+UPLOAD_FOLDER = Path(settings.output_dir)
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
@@ -237,7 +237,7 @@ def generate_image_cli():
 
         # Security: Only allow imagai commands
         if not command.strip().startswith(
-            ("rye run imagai", "python -m imagai", "imagai")
+            ("uv run imagai", "python -m imagai", "imagai")
         ):
             return jsonify(
                 {"success": False, "error": "Only imagai commands are allowed"}
