@@ -17,8 +17,8 @@ capability; everything here makes the tool runnable, correct, and maintainable.
 
 ### Security & Correctness
 
-- [ ] **SEC-01**: An `output` filename that is absolute, contains `..`, or otherwise escapes the output directory is rejected with an error rather than written
-- [ ] **SEC-02**: Every path written by the image save pipeline resolves inside `settings.output_dir`, verified by a test
+- [x] **SEC-01**: An `output` filename that is absolute, contains `..`, or otherwise escapes the output directory is rejected with an error rather than written
+- [x] **SEC-02**: Every path written by the image save pipeline resolves inside `settings.output_dir`, verified by a test
 - [ ] **SEC-03**: `python src/imagai/web_server.py` starts the server without raising `NameError`
 - [ ] **SEC-04**: HTTP endpoints validate request payloads before dispatching to core, returning 4xx on invalid input
 
@@ -80,8 +80,8 @@ Populated during roadmap creation.
 | ENV-02 | Phase 1 | Complete |
 | ENV-03 | Phase 1 | Complete |
 | ENV-04 | Phase 1 | Complete |
-| SEC-01 | Phase 2 | Pending |
-| SEC-02 | Phase 2 | Pending |
+| SEC-01 | Phase 2 | Complete |
+| SEC-02 | Phase 2 | Complete |
 | SEC-03 | Phase 3 | Pending |
 | SEC-04 | Phase 3 | Pending |
 | ERR-01 | Phase 4 | Pending |

@@ -23,7 +23,7 @@ contracts are pinned by tests.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Runnable Toolchain** - Migrate rye to uv so a clean checkout installs, runs, and tests (completed 2026-10-04)
-- [ ] **Phase 2: Path Containment** - The save pipeline can only write inside the configured output directory
+- [x] **Phase 2: Path Containment** - The save pipeline can only write inside the configured output directory (completed 2026-10-07)
 - [ ] **Phase 3: HTTP Boundary** - The web server starts from source and rejects malformed payloads with 4xx
 - [ ] **Phase 4: Error Propagation** - A failed generation reaches the user instead of being logged and dropped
 - [ ] **Phase 5: Configuration Cleanup** - `imagai.config` becomes a pure settings declaration
@@ -206,7 +206,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runnable Toolchain | 3/3 | Complete    | 2026-10-04 |
-| 2. Path Containment | 2/2 | Complete | 2026-10-06 |
+| 2. Path Containment | 2/2 | Complete    | 2026-10-06 |
 | 3. HTTP Boundary | 0/3 | Not started | - |
 | 4. Error Propagation | 0/2 | Not started | - |
 | 5. Configuration Cleanup | 0/2 | Not started | - |
