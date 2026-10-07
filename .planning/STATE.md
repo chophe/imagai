@@ -10,11 +10,11 @@ last_activity: 2026-10-07
 last_activity_desc: Phase 02 complete, transitioned to Phase 3
 state_head: 584cc69a2f75c8eac1522859fa7380b563abe19c
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 2
-  total_plans: 7
+  total_plans: 8
   completed_plans: 5
-  percent: 33
+  percent: 29
 ---
 
 # Project State
@@ -24,7 +24,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Fast prompt-to-image. If everything else fails, turning a prompt into an image must still work.
-**Current focus:** Phase 3 — HTTP Boundary
+**Current focus:** Phase 2.5 — Web Server Safety (INSERTED)
 
 ## Current Position
 
@@ -33,7 +33,7 @@ Plan: Not started
 Status: Ready to plan
 Last activity: 2026-10-07 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [███░░░░░░░] 33%
+Progress: [██░░░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -110,14 +110,17 @@ None yet.
 - **Phase 5 config risk (highest technical risk in the milestone).** The `os.environ` loop at `config.py:38-54` exists to work around nested-delimiter parsing for engine names containing `__` (e.g. `openai_dalle3`). Removing it without a parametrized equivalence test risks a silent config regression no existing test would catch.
 - **Resolved — Phase 2 open question.** `UPLOAD_FOLDER` is now `Path(settings.output_dir)`
   (`web_server.py:33`), so read/serve and write agree on one directory (D-05, shipped).
-- **UNASSIGNED — command injection in `/api/generate-cli`.** `web_server.py:239-255` passes user
-  input to `subprocess.run(..., shell=True)` behind a `startswith` guard that `imagai; <cmd>`
-  bypasses → RCE. Found in Phase 2's code review (CR-02). **No phase currently owns this.**
-  Phase 3 (HTTP Boundary) is the natural home — decide at Phase 3 discuss whether to fold it in
-  or add a phase.
-- **UNASSIGNED — `NameError` in `web_server.py`.** `main()` is called at `:364` four lines before
-  its definition at `:368` (CR-03). Masked in normal use because the `imagai-web` console script
-  calls `main()` correctly, so it only bites `python -m` style entry. Originally Phase 4's scope.
+- **RESOLVED — command injection in `/api/generate-cli` is now owned.** `web_server.py:239-255`
+  passed user input to `subprocess.run(..., shell=True)` behind a `startswith` guard that
+  `imagai; <cmd>` bypasses (CR-02). Combined with `main()` defaulting to `host="0.0.0.0"`, that was
+  a network-reachable RCE by default. Assigned to **inserted Phase 2.5 as SEC-05/SEC-06**, which
+  lands before Phase 3 and fixes `shell=False`, the loopback bind, and `debug=False`.
+- **RESOLVED — the `NameError` was not unassigned after all.** `web_server.py:364` calls `main()`
+  before its definition at `:368` (CR-03). It was already Phase 3's SEC-03; it has been **moved to
+  Phase 2.5**, which reorders the same lines. Phase 3 keeps a regression guard only.
+- **Corrected a false premise.** "The web server is localhost-only" was wrong — it bound `0.0.0.0`.
+  That wrong premise is why the RCE read as a low-priority "correctness bug" and why auth looked
+  out of scope. Phase 2.5 restores the premise. Until it lands, treat the server as exposed.
 - **Test suite has a live-API dependency.** `test_llm_filename_contained` calls a real engine and
   hangs the run. Use `uv run pytest -k "not llm"` locally. Fixing it is unscheduled.
 - **Test infrastructure is thin.** `tests/test_cli.py` still holds two `assert True` placeholders,

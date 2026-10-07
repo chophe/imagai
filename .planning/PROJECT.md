@@ -67,9 +67,11 @@ real strength worth preserving during refactoring.
   now resolves under `settings.output_dir`
 - **Command injection in `/api/generate-cli`** — `web_server.py:239-255` passes user input to
   `subprocess.run(..., shell=True)` behind a `startswith` guard that `imagai; <cmd>` bypasses.
-  Found in Phase 2's code review; **not yet assigned to a phase** — must not be forgotten
-- The `NameError` above, masked in normal use because the `imagai-web` console script calls
-  `main()` correctly
+  Found in Phase 2's code review; **assigned to inserted Phase 2.5 as SEC-05/SEC-06**, together
+  with the `0.0.0.0` bind and `debug=True` defaults. Phase 2.5 lands before Phase 3.
+- The `NameError` above (`main()` at `:364` called before its definition at `:368`), masked in normal
+  use because the `imagai-web` console script calls `main()` correctly — assigned to Phase 2.5 as
+  SEC-03, since that phase already reorders the same lines
 - No provider registry — `core.py` hardcodes `OpenAISDKProvider`, so a new backend means editing
   orchestration code. This contradicts the multi-backend framing in the README.
 - Rich rendering leaks into the provider data layer (`openai_sdk_provider.py:249-293`)
@@ -89,8 +91,12 @@ during mapping and are corrected here: uploads *are* capped by `MAX_CONTENT_LENG
 
 ## Constraints
 
-- **Security scope**: the web server is localhost-only, so security work targets correctness
-  (don't write outside the output directory) rather than remote exposure — why auth is out of scope
+- **Security scope**: the web server is a localhost dev tool. **Corrected 2026-10-07:** the original
+  claim that it is "localhost-only" was false — `main()` defaulted to `host="0.0.0.0"`, so a bare
+  `imagai-web` listened on every interface and `/api/generate-cli` accepted arbitrary shell
+  commands. Phase 2.5 (SEC-05, SEC-06) restores the loopback default and removes `shell=True`.
+  **Once that lands, "no auth" is defensible again** because the server really is loopback-only.
+  Until then, treat the web server as network-exposed.
 - **Toolchain**: migrating to uv means `pyproject.toml`, both rye lockfiles, and the README's rye
   commands all need updating together — why they're one phase, not three
 - **Python version**: pinned to 3.12.9 via `.python-version`; `requires-python` now reads `>=3.9`
@@ -128,4 +134,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-07 after Phase 2*
+*Last updated: 2026-10-07 after Phase 2 (inserted Phase 2.5; corrected the localhost-only security premise)*

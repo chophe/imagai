@@ -24,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Runnable Toolchain** - Migrate rye to uv so a clean checkout installs, runs, and tests (completed 2026-10-04)
 - [x] **Phase 2: Path Containment** - The save pipeline can only write inside the configured output directory (completed 2026-10-07)
+- [ ] **Phase 2.5: Web Server Safety** (INSERTED) - The dev server starts safely and cannot execute attacker-chosen shell
 - [ ] **Phase 3: HTTP Boundary** - The web server starts from source and rejects malformed payloads with 4xx
 - [ ] **Phase 4: Error Propagation** - A failed generation reaches the user instead of being logged and dropped
 - [ ] **Phase 5: Configuration Cleanup** - `imagai.config` becomes a pure settings declaration
@@ -101,25 +102,65 @@ Notes:
 - Rejection must produce a populated `ImageGenerationResponse.error` (the existing contract), not an exception — Phase 4 formalizes how that error reaches the user.
 - `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` — unified to `settings.output_dir` in Plan 02 (D-05).
 
-### Phase 3: HTTP Boundary
+### Phase 2.5: Web Server Safety (INSERTED)
 
-**Goal**: The web server starts from source and rejects malformed requests before they reach the generation path
+**Goal**: The dev server starts safely from source, binds only to localhost, and cannot execute a caller-supplied shell string
 **Mode**: mvp
 **Depends on**: Phase 1, Phase 2
-**Requirements**: SEC-03, SEC-04
+**Requirements**: SEC-05, SEC-06
 **Success Criteria** (what must be TRUE):
 
-  1. `python src/imagai/web_server.py` starts the server and prints its startup banner without raising `NameError` (SEC-03)
-  2. `POST /api/generate` with a missing `prompt` returns HTTP 400 with a JSON error body (SEC-04)
-  3. `POST /api/generate` with an out-of-enum `size` such as `"10x10"`, or a non-integer `n`, returns HTTP 400 and never reaches the provider (SEC-04)
-  4. `POST /api/generate` with an `output` value that escapes the output directory returns HTTP 400 and writes nothing outside it, consistent with Phase 2's rejection (SEC-04)
-  5. A valid request still returns HTTP 200 with the same `results` shape as before this phase (SEC-04)
+  1. `POST /api/generate-cli` with `{"command": "imagai; touch /tmp/pwned"}` returns an error, no subprocess runs, and `/tmp/pwned` does not exist — verified by a test (SEC-05)
+  2. `subprocess.run` in `web_server.py` is called with `shell=False` and an argv list; no call site in the repo passes `shell=True` — verified by grep (SEC-05)
+  3. The allow-list is enforced on the argv tokens, so a command whose *first tokens* match an allowed prefix is rejected when later tokens contain shell metacharacters (SEC-05)
+  4. `main()` defaults to `host="127.0.0.1"` and `debug=False`, so a bare `imagai-web` binds loopback only — verified by a test asserting the defaults (SEC-06)
+  5. `imagai generate --help` and `POST /api/generate` still work unchanged (SEC-05)
+
+**Plans**: TBD at planning
+
+Notes:
+
+- **Why this is urgent.** `imagai-web` resolves to `web_server:main`, whose defaults are
+  `host="0.0.0.0", debug=True` (`web_server.py:368-377`). The server therefore listens on every
+  interface by default, and `/api/generate-cli` (`:227`) runs `subprocess.run(command, shell=True)`
+  behind a `startswith` guard that `imagai; <cmd>` bypasses. That is a network-reachable RCE by
+  default, not a local correctness bug.
+- **This invalidates a PROJECT.md premise.** "The web server is localhost-only, so security work
+  targets correctness rather than remote exposure" was false as written. Fixing the bind address
+  restores the premise, which is what makes auth-out-of-scope defensible again.
+- **Why `shell=False` and not a stricter allow-list.** Enforcing the allow-list on argv tokens
+  removes the shell's parsing of `;`, `|`, `&&`, and backticks entirely. A stricter regex over the
+  raw string would keep re-introducing bypasses.
+- **Open decision for discuss-phase:** `/api/generate-cli` is documented as an "alternative method"
+  that duplicates `/api/generate`. Whether it survives at all, or is replaced by an argv form, is a
+  product question this phase must answer rather than assume.
+- Werkzeug resolves to 3.1.9, so the debugger PIN-bypass CVE is patched. `debug=True` is treated
+  here as information-disclosure and DoS surface, not as a second RCE.
+- No visual/UI design work in this phase — it is server-execution safety only.
+
+### Phase 3: HTTP Boundary
+
+**Goal**: The web server rejects malformed requests before they reach the generation path
+**Mode**: mvp
+**Depends on**: Phase 1, Phase 2, Phase 2.5
+**Requirements**: SEC-04
+**Success Criteria** (what must be TRUE):
+
+  1. `POST /api/generate` with a missing `prompt` returns HTTP 400 with a JSON error body (SEC-04)
+  2. `POST /api/generate` with an out-of-enum `size` such as `"10x10"`, or a non-integer `n`, returns HTTP 400 and never reaches the provider (SEC-04)
+  3. `POST /api/generate` with an `output` value that escapes the output directory returns HTTP 400 and writes nothing outside it, consistent with Phase 2's rejection (SEC-04)
+  4. A valid request still returns HTTP 200 with the same `results` shape as before this phase (SEC-04)
+  5. `python src/imagai/web_server.py` starts the server and prints its startup banner without raising `NameError` (inherited from Phase 2.5; regression guard only) (SEC-04)
 
 **Plans**: 3 plans (TBD at planning)
 
 Notes:
 
-- `web_server.py:365` calls `main()` four lines before its definition at `:368`.
+- `web_server.py:365` calls `main()` four lines before its definition at `:368`. (SEC-03 was moved
+  to Phase 2.5, which fixes the same line as part of making the server start safely.)
+- **By this phase the shell-execution hole (SEC-05) and the loopback default (SEC-06) are already
+  closed** — Phase 2.5 lands first. This phase adds request-shape validation on top of a corrected
+  server, so its planning reads a file whose dangerous path is already gone.
 - The request object is built twice in `generate_image()` (`:127-140` and `:157-170`); the second build silently discards the first's `input_image` handling order. Worth collapsing while touching this function.
 - `int(data.get("n", 1))` and `float(data["strength"])` raise bare `ValueError` today, which the blanket `except Exception` at `:221` converts to a 500. SEC-04 is what turns those into 400s.
 - No visual/UI design work in this phase — it is API request validation only.
@@ -201,12 +242,13 @@ Notes:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 2.5 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Runnable Toolchain | 3/3 | Complete    | 2026-10-04 |
-| 2. Path Containment | 2/2 | Complete    | 2026-10-06 |
+| 2. Path Containment | 2/2 | Complete    | 2026-10-07 |
+| 2.5. Web Server Safety | 0/1 | Not started | - |
 | 3. HTTP Boundary | 0/3 | Not started | - |
 | 4. Error Propagation | 0/2 | Not started | - |
 | 5. Configuration Cleanup | 0/2 | Not started | - |

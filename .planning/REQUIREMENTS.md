@@ -21,6 +21,10 @@ capability; everything here makes the tool runnable, correct, and maintainable.
 - [x] **SEC-02**: Every path written by the image save pipeline resolves inside `settings.output_dir`, verified by a test
 - [ ] **SEC-03**: `python src/imagai/web_server.py` starts the server without raising `NameError`
 - [ ] **SEC-04**: HTTP endpoints validate request payloads before dispatching to core, returning 4xx on invalid input
+- [ ] **SEC-05**: `POST /api/generate-cli` cannot execute attacker-chosen shell — no `shell=True`, and the
+      allow-list is enforced on an argv token list rather than a shell string
+- [ ] **SEC-06**: The dev server binds `127.0.0.1` with `debug=False` by default, so the default
+      `imagai-web` invocation is not reachable from other hosts
 
 ### Error Handling
 
@@ -82,8 +86,10 @@ Populated during roadmap creation.
 | ENV-04 | Phase 1 | Complete |
 | SEC-01 | Phase 2 | Complete |
 | SEC-02 | Phase 2 | Complete |
-| SEC-03 | Phase 3 | Pending |
+| SEC-03 | Phase 2.5 | Pending |
 | SEC-04 | Phase 3 | Pending |
+| SEC-05 | Phase 2.5 | Pending |
+| SEC-06 | Phase 2.5 | Pending |
 | ERR-01 | Phase 4 | Pending |
 | ERR-02 | Phase 4 | Pending |
 | CFG-01 | Phase 5 | Pending |
@@ -95,15 +101,17 @@ Populated during roadmap creation.
 
 **Coverage:**
 
-- v1 requirements: 16 total
-- Mapped to phases: 16
+- v1 requirements: 18 total (16 defined at roadmap creation, plus SEC-05 and SEC-06 added 2026-10-07
+  when a network-reachable command-injection path was found and no phase owned it)
+- Mapped to phases: 18
 - Unmapped: 0
 
 **Phase assignments:**
 
 - Phase 1 — Runnable Toolchain: ENV-01, ENV-02, ENV-03, ENV-04, CFG-03
 - Phase 2 — Path Containment: SEC-01, SEC-02
-- Phase 3 — HTTP Boundary: SEC-03, SEC-04
+- Phase 2.5 — Web Server Safety (INSERTED): SEC-03, SEC-05, SEC-06
+- Phase 3 — HTTP Boundary: SEC-04
 - Phase 4 — Error Propagation: ERR-01, ERR-02
 - Phase 5 — Configuration Cleanup: CFG-01, CFG-02
 - Phase 6 — Provider Registry: ARCH-01, ARCH-02, ARCH-03
@@ -114,4 +122,4 @@ Populated during roadmap creation.
 
 ---
 *Requirements defined: 2026-10-02*
-*Last updated: 2026-10-02 after roadmap creation (traceability populated; count corrected to 16)*
+*Last updated: 2026-10-07 after Phase 2 (SEC-05, SEC-06 added and routed to inserted Phase 2.5)*
