@@ -102,12 +102,14 @@ Notes:
 - Rejection must produce a populated `ImageGenerationResponse.error` (the existing contract), not an exception — Phase 4 formalizes how that error reaches the user.
 - `web_server.py:33` hardcodes `UPLOAD_FOLDER = Path("generated_images")` — unified to `settings.output_dir` in Plan 02 (D-05).
 
-### Phase 2.5: Web Server Safety (INSERTED)
+### Phase 2.5: Web Server Safety
+
+> **INSERTED 2026-10-07** between Phase 2 and Phase 3. Owns SEC-03, SEC-05, SEC-06.
 
 **Goal**: The dev server starts safely from source, binds only to localhost, and cannot execute a caller-supplied shell string
 **Mode**: mvp
 **Depends on**: Phase 1, Phase 2
-**Requirements**: SEC-05, SEC-06
+**Requirements**: SEC-03, SEC-05, SEC-06, SEC-07, SEC-08
 **Success Criteria** (what must be TRUE):
 
   1. `POST /api/generate-cli` with `{"command": "imagai; touch /tmp/pwned"}` returns an error, no subprocess runs, and `/tmp/pwned` does not exist — verified by a test (SEC-05)
@@ -115,6 +117,9 @@ Notes:
   3. The allow-list is enforced on the argv tokens, so a command whose *first tokens* match an allowed prefix is rejected when later tokens contain shell metacharacters (SEC-05)
   4. `main()` defaults to `host="127.0.0.1"` and `debug=False`, so a bare `imagai-web` binds loopback only — verified by a test asserting the defaults (SEC-06)
   5. `imagai generate --help` and `POST /api/generate` still work unchanged (SEC-05)
+  6. `python src/imagai/web_server.py` starts the server and prints its startup banner without raising `NameError` (SEC-03)
+  7. No `CORS(app)` call remains and `flask-cors` is absent from `pyproject.toml`; a cross-origin `POST /api/generate-cli` receives no CORS grant — verified by a test (SEC-07)
+  8. `POST /api/generate-cli` does not return an image that already existed in `settings.output_dir` before the call — verified by a test that seeds a file, calls the endpoint, and asserts it is absent from the response (SEC-08)
 
 **Plans**: TBD at planning
 
@@ -131,9 +136,17 @@ Notes:
 - **Why `shell=False` and not a stricter allow-list.** Enforcing the allow-list on argv tokens
   removes the shell's parsing of `;`, `|`, `&&`, and backticks entirely. A stricter regex over the
   raw string would keep re-introducing bypasses.
-- **Open decision for discuss-phase:** `/api/generate-cli` is documented as an "alternative method"
-  that duplicates `/api/generate`. Whether it survives at all, or is replaced by an argv form, is a
-  product question this phase must answer rather than assume.
+- **Endpoint fate — decided in discuss-phase:** `/api/generate-cli` is **kept**, argv-only. The
+  bundled UI never calls it, but the curl-driven path is preserved deliberately rather than deleted
+  by omission. See `02.5-CONTEXT.md` D-01/D-02.
+- **CORS — decided in discuss-phase:** `GET /` serves `web_interface.html` same-origin
+  (`web_server.py:39-49`) and that UI consumes only `/api/generate` and `/api/engines`, so wide-open
+  CORS was never needed. `CORS(app)` and the `flask-cors` dependency are removed (SEC-07). This also
+  corrects stale claims in `docs/architecture.md:6,36` and `docs/dependencies.md:21`.
+- **Cross-request image leak — decided in discuss-phase:** the endpoint currently returns every image
+  in `settings.output_dir` modified in the last 300s, so concurrent requests see each other's files.
+  Fixed here with a before/after directory diff (SEC-08). Accepted residual: the diff still races
+  under truly concurrent calls; a `threading.Lock` is the upgrade path if concurrency is ever reported.
 - Werkzeug resolves to 3.1.9, so the debugger PIN-bypass CVE is patched. `debug=True` is treated
   here as information-disclosure and DoS surface, not as a second RCE.
 - No visual/UI design work in this phase — it is server-execution safety only.
