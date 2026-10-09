@@ -218,6 +218,35 @@ def test_generate_cli_rejects_unbalanced_quotes():
     assert isinstance(error, str) and error
 
 
+def test_generate_cli_rejects_non_string_command():
+    """A non-string `command` is a malformed field: 400, not a 500 leak.
+
+    shlex.split raises AttributeError (not ValueError) on an int/list/dict, so
+    before the isinstance guard the request escaped the inner `except ValueError`
+    and the outer `except Exception` answered 500 with the raw internal message.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    for payload in (123, ["imagai", "generate"], {"a": 1}, None, True):
+        with patch.object(
+            web_server.subprocess,
+            "run",
+            return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+        ) as m:
+            resp = client.post("/api/generate-cli", json={"command": payload})
+
+        assert resp.status_code == 400, payload
+        body = resp.get_json()
+        assert body["success"] is False
+        assert body["error"] == "Command must be a string"
+        assert m.called is False
+
+
 # ── SEC-08: cross-request image leakage ──
 
 

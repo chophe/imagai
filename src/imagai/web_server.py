@@ -273,6 +273,16 @@ def generate_image_cli():
 
         command = data["command"]
 
+        # JSON lets any type into this field. shlex.split on a non-string raises
+        # AttributeError (not ValueError), which escapes the parse branch below
+        # and reaches the outer handler as a 500 carrying the internal message.
+        # A malformed field is the caller's mistake: 400, no subprocess.
+        if not isinstance(command, str):
+            return (
+                jsonify({"success": False, "error": "Command must be a string"}),
+                400,
+            )
+
         # Tokenize without a shell, then gate on the resulting token sequence.
         try:
             tokens = shlex.split(command)
