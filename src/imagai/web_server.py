@@ -39,8 +39,11 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 @app.route("/")
 def index():
     """Serve the main web interface"""
+    # Resolve relative to this file so the server works from any CWD:
+    # web_interface.html sits at the repo root, two levels above this package.
+    html_path = Path(__file__).resolve().parents[2] / "web_interface.html"
     try:
-        with open("web_interface.html", "r", encoding="utf-8") as f:
+        with open(html_path, "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
         return (
