@@ -301,12 +301,6 @@ def list_engines_command(
     except Exception:
         OpenAI = None
 
-    # Also try plain HTTP as a fallback for OpenAI-compatible endpoints (e.g., AvalAI)
-    try:
-        import requests as _requests  # type: ignore
-    except Exception:
-        _requests = None
-
     def _is_image_model(model_id: str) -> bool:
         mid = model_id.lower()
         image_indicators = [
@@ -337,7 +331,7 @@ def list_engines_command(
         model_ids: list[str] = []
         errors: list[str] = []
 
-        # 1) Try via OpenAI client when available
+        # Fetch models via the OpenAI client (openai is a direct dependency)
         if OpenAI:
             try:
                 client = (
@@ -353,39 +347,6 @@ def list_engines_command(
                         model_ids.append(mid)
             except Exception as e:
                 errors.append(f"OpenAI client error: {e}")
-
-        # 2) Fallback via plain HTTP to {base_url}/models (OpenAI-compatible endpoints like AvalAI)
-        if not model_ids and getattr(config, "base_url", None):
-            try:
-                if _requests is None:
-                    raise RuntimeError("requests not installed; run `uv add requests && uv sync`.")
-                url = str(config.base_url).rstrip("/") + "/models"
-                headers = {
-                    "Authorization": f"Bearer {config.api_key}",
-                    "Content-Type": "application/json",
-                }
-                resp = _requests.get(url, headers=headers, timeout=20)
-                resp.raise_for_status()
-                payload = resp.json()
-                # Parse common shapes: {"data": [{"id": ...}]}, list[str], list[dict]
-                if isinstance(payload, dict) and isinstance(payload.get("data"), list):
-                    for m in payload["data"]:
-                        if isinstance(m, dict):
-                            mid = m.get("id") or m.get("name") or m.get("model")
-                            if mid:
-                                model_ids.append(mid)
-                elif isinstance(payload, list):
-                    for m in payload:
-                        if isinstance(m, str):
-                            model_ids.append(m)
-                        elif isinstance(m, dict):
-                            mid = m.get("id") or m.get("name") or m.get("model")
-                            if mid:
-                                model_ids.append(mid)
-                else:
-                    errors.append("Unexpected response format from /models")
-            except Exception as e:
-                errors.append(f"HTTP /models error: {e}")
 
         # Optional filter for image-only unless --all specified
         filtered_ids = model_ids if list_all else [m for m in model_ids if _is_image_model(m)]
@@ -410,8 +371,8 @@ def list_engines_command(
                 )
             )
 
-    # If neither OpenAI nor requests is available, nudge user to install deps
-    if not OpenAI and _requests is None:
+    # If the OpenAI client is unavailable, nudge user to install deps
+    if not OpenAI:
         console.print(
             "[yellow]Neither 'openai' nor 'requests' packages are available; cannot fetch models. Install with `uv sync`.[/yellow]"
         )
