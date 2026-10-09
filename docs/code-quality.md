@@ -36,9 +36,8 @@ Sampled: `src/imagai/cli.py`, `core.py`, `config.py`, `models.py`, `utils.py`,
 - Module-level side effect `Path(settings.output_dir).mkdir(...)` (`:58`) runs on every import, including tests.
 
 ### 6. Security / robustness (web_server.py)
-- `subprocess.run(command, shell=True, ...)` (`:248-255`) on user-supplied `command` with only a string-prefix allowlist — bypassable (`imagai; evil...` starts with the prefix). Prefer an arg-list without `shell=True`, or drop `/api/generate-cli` since `/api/generate` already covers it.
-- `debug=True` default in `main()` (`:369`); broad `except Exception → jsonify(str(e))` (`:222-224`) leaks internals to clients.
-- `UPLOAD_FOLDER = Path("generated_images")` (`:33`) ignores `settings.output_dir`; `sys.path.insert` hack (`:23`) instead of relying on the installed package.
+- Broad `except Exception → jsonify(str(e))` handlers on the API routes leak internal error strings to clients — still open (Phase 4).
+- `sys.path.insert` hack (`:23`) instead of relying on the installed package.
 
 ### 7. Model / default mismatches
 - `response_format` default is `"url"` in `models.py:17` but `"b64_json"` in `cli.py:87` and `web_server.py:135`. One default should win.
@@ -55,7 +54,6 @@ Sampled: `src/imagai/cli.py`, `core.py`, `config.py`, `models.py`, `utils.py`,
 
 ## Prioritized recommendations
 
-- **P0 — Remove `shell=True` in `/api/generate-cli`** (`web_server.py:248`) or delete the endpoint; fix `debug=True` default (`:369`). Injection + debug server is the only security-grade finding.
 - **P0 — Unify `response_format` default** (`models.py` vs `cli.py` vs `web_server.py`) and add a real test pinning it. Mismatched defaults cause silent behavior differences between CLI and web.
 - **P1 — Split `OpenAISDKProvider.generate_image`**: extract `_generate_via_chat()` (OpenRouter path, async client) and `_render_usage_table()` out; fixes the blocking-sync-call bug at the same time.
 - **P1 — Deduplicate image saving** (`utils.py`): one `_save_pil_image()` + thin `from_url`/`from_b64` wrappers; deduplicate the `_{i+1}` suffix in `core.py` into a helper. Small diffs, kill three copy-paste sites.

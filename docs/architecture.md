@@ -3,7 +3,7 @@
 ## Overview
 Imagai is a CLI-first image-generation tool targeting OpenAI-compatible image APIs (DALL-E, Stable Diffusion, Gemini/Imagen via OpenAI-compatible gateways). A thin Flask server (`imagai-web`) reuses the same core to expose the CLI over a web UI (`web_interface.html`).
 
-Stack: Python, Typer (CLI), Pydantic + pydantic-settings (models/config), OpenAI SDK + httpx (providers), Pillow (image I/O), Flask + Flask-CORS (web server).
+Stack: Python, Typer (CLI), Pydantic + pydantic-settings (models/config), OpenAI SDK + httpx (providers), Pillow (image I/O), Flask (web server).
 
 ## Directory Structure
 ```
@@ -33,7 +33,7 @@ Stack: Python, Typer (CLI), Pydantic + pydantic-settings (models/config), OpenAI
 - **Core (`core.py:generate_image_core`):** Engine lookup → `OpenAISDKProvider(engine_config).generate_image(request)` → filename resolution (`--output` > `--auto-filename` (LLM) > `--random-filename` > prompt-truncated default) → save to `settings.output_dir/` → return responses.
 - **Providers (`providers/`):** `base_provider.py` interface; `openai_sdk_provider.py` is the only concrete provider — all engines go through the OpenAI SDK with per-engine `base_url`/`model`/`api_key`.
 - **Utils (`utils.py`):** `sanitize_filename`, `generate_filename`, `generate_random_filename`, `generate_filename_from_prompt_llm` (prefers `filename_generation` engine → `default_engine` → first `*openai*` engine), `save_image_from_url` / `save_image_from_b64`.
-- **Web server (`web_server.py`):** Flask + CORS; `GET /` serves `web_interface.html`, `GET /api/engines`, generation endpoints call the same `generate_image_core()`.
+- **Web server (`web_server.py`):** Flask; `GET /` serves `web_interface.html`, `GET /api/engines`, generation endpoints call the same `generate_image_core()`.
 
 ## Data Flow / Entry Points
 Entry points (`pyproject.toml [project.scripts]`): `imagai` → `imagai.cli:app`; `imagai-web` → `imagai.web_server:main`.

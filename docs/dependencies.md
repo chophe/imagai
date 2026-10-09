@@ -17,7 +17,6 @@ Direct dependencies (`pyproject.toml` `[project] dependencies`):
 | `openai` | `>=1.0.0` | 3.24.0 | `utils.py:12`, `providers/openai_sdk_provider.py:3`, `cli.py:300` | Keep |
 | `rich` | `>=13.0.0` | 15.0.0 | `cli.py:3-5`, `providers/openai_sdk_provider.py:11-12` | Keep |
 | `flask` | `>=3.0.0` | 3.1.3 | `web_server.py:18` | Keep (2.0.x CVEs excluded by the floor) |
-| `flask-cors` | `>=3.0.10` | 6.0.5 | `web_server.py:19` | Keep |
 | `werkzeug` | `>=2.0.0` | 3.1.9 | `web_server.py:20,314` (`secure_filename` only) | Remove candidate — redundant via Flask |
 | Dev: `pytest` | `>=7.0.0` (`dependency-groups dev`) | 8.3.5 (`uv.lock`) | `tests/` | Keep |
 
@@ -36,4 +35,4 @@ Key transitives (from lockfiles): `click`, `shellingham`, `anyio`, `httpcore`, `
 
 1. **`requests` — top removal candidate.** Single use is a lazy `import requests` fallback for `GET {base_url}/models` in `cli.py:306`. `httpx` is already a direct dep and does the same call in ~3 lines (`httpx.get(...)`). Removing `requests` drops a whole parallel HTTP stack (`urllib3`, `charset-normalizer` as direct-via-requests edges) for zero feature loss.
 2. **`werkzeug` explicit pin — redundant.** Only use is `secure_filename` (`web_server.py:20,311`), which is re-exported through the `Flask` dependency itself. Delete the line from `pyproject.toml` and rely on Flask's own `werkzeug` requirement (or keep only if you need to force `>=3.1` for a CVE floor — then add a comment saying so).
-3. **`flask` + `flask-cors` + `werkzeug` as a trio — review, don't delete blindly.** The web server is a small internal UI (`web_server.py` ~377 lines, one `Flask` app, `CORS(app)` wide-open, one `subprocess.run(shell=True)` endpoint at `/api/generate-cli`). If the web UI stays, keep Flask. If you want fewer deps, the stdlib or the already-present `httpx`+`pydantic` stack (e.g. FastAPI) would fit better — but that's a rewrite, not a cleanup. At minimum, narrow `CORS(app)` to the needed origins.
+3. **`flask` + `werkzeug` as a pair — review, don't delete blindly.** The web server is a small internal UI (`web_server.py`, one `Flask` app serving the bundled page; `werkzeug` is imported only for `secure_filename`). If the web UI stays, keep Flask. If you want fewer deps, the stdlib or the already-present `httpx`+`pydantic` stack (e.g. FastAPI) would fit better — but that's a rewrite, not a cleanup.
