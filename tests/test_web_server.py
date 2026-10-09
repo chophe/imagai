@@ -247,6 +247,43 @@ def test_generate_cli_rejects_non_string_command():
         assert m.called is False
 
 
+def test_no_unused_flask_imports():
+    """IN-03: every name web_server.py imports from flask must be referenced.
+
+    `render_template_string` survived Phase 2.5's drop of flask_cors and was
+    never called. An unused name in a security-reviewed module is lint noise
+    that outlives its reason to exist, so the module is parsed and each imported
+    flask name must still appear as a Name or attribute somewhere in the file.
+    """
+    import ast
+
+    from imagai import web_server
+
+    tree = ast.parse(Path(web_server.__file__).read_text())
+
+    imported = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "flask":
+            imported.update(alias.name for alias in node.names)
+
+    used = {
+        node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
+    } | {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+    }
+
+    assert imported == {
+        "Flask",
+        "request",
+        "jsonify",
+        "send_from_directory",
+    }, f"flask import list changed unexpectedly: {sorted(imported)}"
+    assert not (imported - used), f"unused flask imports: {sorted(imported - used)}"
+
+
 # ── SEC-08: cross-request image leakage ──
 
 
