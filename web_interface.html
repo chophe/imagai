@@ -571,55 +571,6 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
         }
         
-        // Build CLI command
-        function buildCliCommand(formData) {
-            let command = 'uv run imagai generate';
-            
-            // Add prompt
-            const prompt = formData.get('prompt');
-            if (prompt) {
-                command += ` --prompt "${prompt.replace(/"/g, '\\"')}"`;
-            }
-            
-            // Add other parameters
-            const params = {
-                'engine': '--engine',
-                'output': '--output',
-                'n': '--num-images',
-                'size': '--size',
-                'quality': '--quality',
-                'style': '--style',
-                'response_format': '--response-format',
-                'negative_prompt': '--negative-prompt',
-                'seed': '--seed',
-                'strength': '--strength',
-                'output_format': '--output-format',
-                'aspect_ratio': '--aspect-ratio',
-                'mode': '--mode'
-            };
-            
-            Object.keys(params).forEach(key => {
-                const value = formData.get(key);
-                if (value && value.trim()) {
-                    if (key === 'negative_prompt') {
-                        command += ` ${params[key]} "${value.replace(/"/g, '\\"')}"`;
-                    } else {
-                        command += ` ${params[key]} ${value}`;
-                    }
-                }
-            });
-            
-            // Add flags
-            const flags = ['auto_filename', 'random_filename', 'verbose'];
-            flags.forEach(flag => {
-                if (formData.get(flag)) {
-                    command += ` --${flag.replace('_', '-')}`;
-                }
-            });
-            
-            return command;
-        }
-        
         // Execute image generation via API
         async function executeGeneration(formData) {
             const outputElement = document.getElementById('output-content');
