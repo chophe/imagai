@@ -14,6 +14,11 @@
       "status": "complete"
     },
     {
+      "number": "2.5",
+      "name": "Web Server Safety",
+      "status": "pending"
+    },
+    {
       "number": "3",
       "name": "HTTP Boundary",
       "status": "pending"
@@ -36,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 3)",
-    "reason": "Phase 3 of 6 — needs a plan"
+    "label": "Advance to the next step (plan phase 02.5)",
+    "reason": "Phase 02.5 of 7 — needs a plan"
   },
-  "updated_at": "2026-10-07T13:22:36.275Z"
+  "updated_at": "2026-10-09T13:20:03.166Z"
 }

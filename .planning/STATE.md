@@ -2,18 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: "02.5"
-current_phase_name: web-server-safety
-status: executing
-stopped_at: Phase 2.5 context gathered
-last_updated: "2026-10-07T16:52:04.958Z"
-last_activity: 2026-10-07
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: a5ecb9e4c3f9230e9d28ec2116f2f9a2147f9d81
+current_phase_name: Web Server Safety
+status: planning
+stopped_at: Phase 1 complete, ready to plan Phase 02.5
+last_updated: "2026-10-09T13:20:03.127Z"
+last_activity: 2026-10-09
+last_activity_desc: Phase 1 complete, transitioned to Phase 02.5
+state_head: 8c2cd24fe218df8245654664fc78787a5be68726
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 10
   completed_plans: 5
+  percent: 29
 ---
 
 # Project State
@@ -23,16 +24,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-10-07)
 
 **Core value:** Fast prompt-to-image. If everything else fails, turning a prompt into an image must still work.
-**Current focus:** Phase 2.5 — Web Server Safety (INSERTED)
+**Current focus:** Phase 2.5 — Web Server Safety
 
 ## Current Position
 
-Phase: 02.5 (web-server-safety) — READY TO EXECUTE
+Phase: 02.5 — Web Server Safety
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-10-07 — Phase 02 complete, transitioned to Phase 3
+Status: Ready to plan
+Last activity: 2026-10-09 — Phase 1 complete, transitioned to Phase 02.5
 
-Progress: [██░░░░░░░░] 29%
+Progress: [███░░░░░░░] 29%
 
 ## Performance Metrics
 
@@ -46,7 +47,7 @@ Progress: [██░░░░░░░░] 29%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 3 | - | - |
+| 1 | 3 | - | - |
 | 02 | 2 | - | - |
 
 **Recent Trend:**
@@ -143,5 +144,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-07T16:12:49.386Z
-Stopped at: Phase 2.5 context gathered
+Stopped at: Phase 1 complete, ready to plan Phase 02.5
 Resume file: .planning/phases/02.5-web-server-safety/02.5-CONTEXT.md

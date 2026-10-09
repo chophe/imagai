@@ -46,7 +46,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A clean install's `python -c "import typing_extensions"` succeeds because `typing_extensions` is declared in `pyproject.toml` or the import was removed — not because a transitive package happened to pull it in (ENV-04)
   5. `requires-python` reads `>=3.9`, and every import declared in `pyproject.toml` is satisfiable on the pinned 3.12.9 interpreter (CFG-03) — *revised 2026-10-02: this criterion previously required resolving on a 3.9 interpreter. Python 3.9 reached EOL in October 2025, and `requirements.lock` carries zero `python_version` markers, so 3.9 was never actually verified. See `01-CONTEXT.md` D-05/D-06.*
 
-**Plans**: 3/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -127,9 +127,11 @@ Plans:
 **Wave 1**
 
 - [ ] 02.5-01-PLAN.md — Tracer: `/api/generate-cli` runs an allow-listed argv with `shell=False`; before/after image diff; SEC-05 + SEC-08 tests
+
 **Wave 2** *(blocked on Wave 1 — same `web_server.py`)*
 
 - [ ] 02.5-02-PLAN.md — `main()` defined above the `__main__` guard with loopback/no-debug defaults; `CORS(app)` and the `flask_cors` import removed
+
 **Wave 3** *(blocked on Wave 2 — its repo-wide grep gates depend on the code changes)*
 
 - [ ] 02.5-03-PLAN.md — `flask-cors` dropped from `pyproject.toml` + `uv.lock`; the five falsified doc claims corrected
