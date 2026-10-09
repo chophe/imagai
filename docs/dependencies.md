@@ -16,7 +16,7 @@ Direct dependencies (`pyproject.toml` `[project] dependencies`):
 | `pillow` | `>=10.0.0` | 12.3.0 | `utils.py:5,13` | Keep |
 | `openai` | `>=1.0.0` | 3.24.0 | `utils.py:12`, `providers/openai_sdk_provider.py:3`, `cli.py:300` | Keep |
 | `rich` | `>=13.0.0` | 15.0.0 | `cli.py:3-5`, `providers/openai_sdk_provider.py:11-12` | Keep |
-| `flask` | `>=2.0.0` | 3.1.3 | `web_server.py:18` | Keep (or revisit, see below) |
+| `flask` | `>=3.0.0` | 3.1.3 | `web_server.py:18` | Keep (2.0.x CVEs excluded by the floor) |
 | `flask-cors` | `>=3.0.10` | 6.0.5 | `web_server.py:19` | Keep |
 | `werkzeug` | `>=2.0.0` | 3.1.9 | `web_server.py:20,314` (`secure_filename` only) | Remove candidate — redundant via Flask |
 | Dev: `pytest` | `>=7.0.0` (`dependency-groups dev`) | 8.3.5 (`uv.lock`) | `tests/` | Keep |

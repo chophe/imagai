@@ -300,7 +300,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "flask", specifier = ">=2.0.0" },
+    { name = "flask", specifier = ">=3.0.0" },
     { name = "flask-cors", specifier = ">=3.0.10" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "openai", specifier = ">=1.0.0" },
