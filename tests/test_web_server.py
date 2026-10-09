@@ -232,3 +232,48 @@ def test_generate_cli_returns_only_new_files():
     assert "new_1.png" in filenames
     assert "new_2.png" in filenames
     assert "old.png" not in filenames
+
+
+# ── SEC-07: no cross-origin grant ──
+
+
+def test_no_cors_grant_on_cross_origin_post():
+    """SEC-07: a POST carrying an Origin header must receive no CORS grant."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    with patch.object(
+        web_server.subprocess,
+        "run",
+        return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ) as m:
+        resp = client.post(
+            "/api/generate-cli",
+            json={"command": "ls -la"},
+            headers={"Origin": "http://evil.example"},
+        )
+
+    # The command is rejected by the Plan 01 allow-list either way; the
+    # assertion is on the header, which is a CORS fact independent of the
+    # endpoint's status.
+    assert resp.headers.get("Access-Control-Allow-Origin") is None
+
+
+def test_cross_origin_preflight_receives_no_grant():
+    """SEC-07: a preflight OPTIONS is the real drive-by probe -- no grant."""
+    from imagai.web_server import app
+
+    client = app.test_client()
+    resp = client.options(
+        "/api/generate-cli",
+        headers={
+            "Origin": "http://evil.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert resp.headers.get("Access-Control-Allow-Origin") is None

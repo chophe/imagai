@@ -17,7 +17,6 @@ import base64
 import mimetypes
 
 from flask import Flask, request, jsonify, send_from_directory, render_template_string
-from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 # Add the src directory to Python path
@@ -28,7 +27,6 @@ from imagai.core import generate_image_core
 from imagai.models import ImageGenerationRequest
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
 
 # Configuration
 UPLOAD_FOLDER = Path(settings.output_dir)
