@@ -1,9 +1,28 @@
-"""SEC-05 command-execution tests and SEC-08 cross-request leak tests."""
+"""SEC-03/05/06/07/08 web server safety tests."""
 
 import base64
 from pathlib import Path
 
 B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
+# ── SEC-03/SEC-06: server startup ordering and bind defaults ──
+
+
+def test_main_defined_before_main_guard():
+    """SEC-03: running the file as a script must not call main() before it exists."""
+    source = (Path(__file__).resolve().parents[1] / "src" / "imagai" / "web_server.py").read_text()
+    assert source.index("def main(") < source.index('if __name__ == "__main__":')
+
+
+def test_main_defaults_loopback_no_debug():
+    """SEC-06: a bare imagai-web binds loopback with the Werkzeug debugger off."""
+    import inspect
+
+    from imagai.web_server import main
+
+    sig = inspect.signature(main)
+    assert sig.parameters["host"].default == "127.0.0.1"
+    assert sig.parameters["debug"].default is False
 
 # ── SEC-05: command execution runs argv-only ──
 

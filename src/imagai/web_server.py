@@ -414,10 +414,6 @@ def internal_error(error):
     return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
-if __name__ == "__main__":
-    main()
-
-
 def main(
     host: str = "0.0.0.0", port: int = 5000, debug: bool = True, threaded: bool = True
 ):
@@ -428,3 +424,7 @@ def main(
     print("\n" + "=" * 50)
 
     app.run(host=host, port=port, debug=debug, threaded=threaded)
+
+
+if __name__ == "__main__":
+    main()
