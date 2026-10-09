@@ -289,6 +289,102 @@ def test_generate_cli_returns_only_new_files():
     assert "old.png" not in filenames
 
 
+def test_generate_cli_concurrent_requests_return_only_their_own_images():
+    """SEC-08: a concurrent request's file must not appear in this response.
+
+    Request A is held inside its subprocess while request B writes its own
+    image and completes -- the exact window the before/after set-diff races in.
+    Before the _GENERATE_CLI_LOCK, A's diff observed B's file, so A's response
+    carried B's image (the review's demonstrated defeat). With the lock, B
+    cannot enter its own critical section until A leaves, so each response
+    carries only its own file.
+
+    The non-overlap assertion is the measured cost the lock pays: the two runs
+    are strictly sequential, so concurrent callers queue rather than interleave.
+    """
+    import tempfile
+    import threading
+    import time
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.config import settings
+    from imagai.web_server import app
+
+    png_bytes = base64.b64decode(B64)
+
+    # A holds inside its subprocess until B's file is on disk, then proceeds so
+    # A's diff runs after the foreign write. Without the lock that is the race:
+    # A's diff observes B's file. With the lock B cannot enter its own critical
+    # section until A leaves, so A's wait is released by the timeout instead.
+    a_entered = threading.Event()
+    b_wrote = threading.Event()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = Path(tmpdir) / "out"
+        out.mkdir()
+        responses = {}
+        windows = []
+
+        def side_effect(argv, **kwargs):
+            tag = argv[3]  # `imagai generate -p <TAG>`
+            started = time.monotonic()
+            (out / f"from_request_{tag}.png").write_bytes(png_bytes)
+            if tag == "A":
+                a_entered.set()
+                b_wrote.wait(timeout=2)
+            else:
+                b_wrote.set()
+            windows.append((tag, started, time.monotonic()))
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        def run(tag):
+            client = app.test_client()
+            resp = client.post(
+                "/api/generate-cli",
+                json={"command": f"imagai generate -p {tag}"},
+            )
+            responses[tag] = resp
+
+        with patch.object(web_server, "UPLOAD_FOLDER", out), patch.object(
+            settings, "output_dir", str(out)
+        ):
+            with patch.object(web_server.subprocess, "run", side_effect=side_effect):
+                a = threading.Thread(target=run, args=("A",))
+                a.start()
+                # Start B only once A is genuinely inside its subprocess, so
+                # B's write always lands in A's run window.
+                assert a_entered.wait(timeout=5), "A never entered its subprocess"
+                b = threading.Thread(target=run, args=("B",))
+                b.start()
+                a.join(timeout=10)
+                b.join(timeout=10)
+
+        assert not a.is_alive() and not b.is_alive(), "a request thread hung"
+
+        # Both images exist, so B's write really landed inside A's window.
+        assert (out / "from_request_B.png").exists()
+        assert (out / "from_request_A.png").exists()
+
+        assert responses["A"].status_code == 200
+        assert responses["B"].status_code == 200
+        a_files = [
+            img["filename"] for img in responses["A"].get_json()["generated_images"]
+        ]
+        b_files = [
+            img["filename"] for img in responses["B"].get_json()["generated_images"]
+        ]
+        assert a_files == ["from_request_A.png"]
+        assert b_files == ["from_request_B.png"]
+
+        spans = {tag: (start, end) for tag, start, end in windows}
+        (a_start, a_end), (b_start, b_end) = spans["A"], spans["B"]
+        assert a_end <= b_start or b_end <= a_start, (
+            "runs interleaved: A=[%r, %r] B=[%r, %r]" % (a_start, a_end, b_start, b_end)
+        )
+
+
 # ── SEC-07: no cross-origin grant ──
 
 

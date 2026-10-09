@@ -10,6 +10,7 @@ import json
 import shlex
 import subprocess
 import asyncio
+import threading
 from pathlib import Path
 from typing import Dict, Any, List
 from datetime import datetime
@@ -262,6 +263,17 @@ def _png_snapshot() -> set:
     return set()
 
 
+# Serializes snapshot -> run -> diff so a concurrent request's file cannot land
+# in the window this request is diffing (SEC-08). CONTEXT D-04 accepted that
+# residual while the server was assumed single-tenant; the review demonstrated
+# the race on a threaded server, so the accepted debt is paid here.
+# Cost: concurrent /api/generate-cli calls now run sequentially, so one caller
+# can wait up to the 300s subprocess timeout behind another.
+# ponytail: global lock; a per-request output dir is the real fix, and needs
+# CLI support the save layer does not have.
+_GENERATE_CLI_LOCK = threading.Lock()
+
+
 @app.route("/api/generate-cli", methods=["POST"])
 def generate_image_cli():
     """Generate image using CLI command execution (alternative method)"""
@@ -305,51 +317,49 @@ def generate_image_cli():
 
         # Execute command
         try:
-            # Snapshot before the run so the response can carry only the files
-            # this request created.
-            before = _png_snapshot()
+            with _GENERATE_CLI_LOCK:
+                # Snapshot before the run so the response can carry only the
+                # files this request created.
+                before = _png_snapshot()
 
-            result = subprocess.run(
-                tokens,
-                shell=False,
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 minute timeout
-                cwd=os.getcwd(),
-            )
+                result = subprocess.run(
+                    tokens,
+                    shell=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,  # 5 minute timeout
+                    cwd=os.getcwd(),
+                )
 
-            response_data = {
-                "success": result.returncode == 0,
-                "command": command,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-                "returncode": result.returncode,
-            }
+                response_data = {
+                    "success": result.returncode == 0,
+                    "command": command,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "returncode": result.returncode,
+                }
 
-            # Try to find generated images
-            if result.returncode == 0:
-                generated_images = []
-                # ponytail: set-diff scan, not serialized — two truly concurrent
-                # requests can each observe the other's files. Upgrade path: a
-                # threading.Lock around snapshot -> run -> diff.
-                for img_file in sorted(_png_snapshot() - before):
-                    try:
-                        with open(img_file, "rb") as f:
-                            img_data = f.read()
-                            img_b64 = base64.b64encode(img_data).decode("utf-8")
-                            generated_images.append(
-                                {
-                                    "filename": img_file.name,
-                                    "path": str(img_file),
-                                    "data": f"data:image/png;base64,{img_b64}",
-                                }
-                            )
-                    except Exception as e:
-                        print(f"Error reading image {img_file}: {e}")
+                # Try to find generated images
+                if result.returncode == 0:
+                    generated_images = []
+                    for img_file in sorted(_png_snapshot() - before):
+                        try:
+                            with open(img_file, "rb") as f:
+                                img_data = f.read()
+                                img_b64 = base64.b64encode(img_data).decode("utf-8")
+                                generated_images.append(
+                                    {
+                                        "filename": img_file.name,
+                                        "path": str(img_file),
+                                        "data": f"data:image/png;base64,{img_b64}",
+                                    }
+                                )
+                        except Exception as e:
+                            print(f"Error reading image {img_file}: {e}")
 
-                response_data["generated_images"] = generated_images
+                    response_data["generated_images"] = generated_images
 
-            return jsonify(response_data)
+                return jsonify(response_data)
 
         except subprocess.TimeoutExpired:
             return jsonify(
