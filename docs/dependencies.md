@@ -1,25 +1,24 @@
 # Dependencies Review
 
-Source files inspected: `pyproject.toml`, `requirements.lock`, `requirements-dev.lock`, `.python-version` (3.12.9).
+Source files inspected: `pyproject.toml`, `uv.lock`, `.python-version` (3.12.9). Dependencies are locked with `uv lock` and installed with `uv sync`; `uv run` executes the CLI and the test suite.
 Import usage spot-checked under `src/imagai/` (`cli.py`, `web_server.py`, `utils.py`, `config.py`, `core.py`, `providers/openai_sdk_provider.py`).
 
 ## 1. Dependency overview
 
 Direct dependencies (`pyproject.toml` `[project] dependencies`):
 
-| Package | Declared | Locked (`requirements.lock`) | Used where | Verdict |
+| Package | Declared | Locked (`uv.lock`) | Used where | Verdict |
 |---|---|---|---|---|
-| `typer[all]` | `>=0.9.0` | 0.16.0 | `cli.py:1` | Keep, but drop `[all]` extra |
+| `typer[all]` | `>=0.9.0` | 0.27.2 | `cli.py:1` | Keep, but drop `[all]` extra |
 | `httpx` | `>=0.25.0` | 0.28.1 | `utils.py:1`, `providers/openai_sdk_provider.py:1` (+ via `openai`) | Keep |
-| `pydantic` | `>=2.0.0` | 2.11.5 | `models.py`, `config.py:1` | Keep |
-| `pydantic-settings` | `>=2.0.0` | 2.9.1 | `config.py:2` | Keep |
-| `pillow` | `>=10.0.0` | 11.2.1 | `utils.py:5,13` | Keep |
-| `openai` | `>=1.0.0` | 1.82.1 | `utils.py:12`, `providers/openai_sdk_provider.py:3`, `cli.py:300` | Keep |
-| `rich` | `>=13.0.0` | 14.0.0 | `cli.py:3-5`, `providers/openai_sdk_provider.py:11-12` | Keep |
-| `requests` | `>=2.32.5` | 2.32.5 | `cli.py:306` (lazy fallback only) | Remove candidate — replace with `httpx` |
-| `flask` | `>=2.0.0` | 3.1.2 | `web_server.py:18` | Keep (or revisit, see below) |
-| `flask-cors` | `>=3.0.10` | 6.0.1 | `web_server.py:19` | Keep |
-| `werkzeug` | `>=2.0.0` | 3.1.3 | `web_server.py:20,311` (`secure_filename` only) | Remove candidate — redundant via Flask |
+| `pydantic` | `>=2.0.0` | 2.13.5 | `models.py`, `config.py:1` | Keep |
+| `pydantic-settings` | `>=2.0.0` | 2.15.0 | `config.py:2` | Keep |
+| `pillow` | `>=10.0.0` | 12.3.0 | `utils.py:5,13` | Keep |
+| `openai` | `>=1.0.0` | 3.24.0 | `utils.py:12`, `providers/openai_sdk_provider.py:3`, `cli.py:300` | Keep |
+| `rich` | `>=13.0.0` | 15.0.0 | `cli.py:3-5`, `providers/openai_sdk_provider.py:11-12` | Keep |
+| `flask` | `>=2.0.0` | 3.1.3 | `web_server.py:18` | Keep (or revisit, see below) |
+| `flask-cors` | `>=3.0.10` | 6.0.5 | `web_server.py:19` | Keep |
+| `werkzeug` | `>=2.0.0` | 3.1.9 | `web_server.py:20,314` (`secure_filename` only) | Remove candidate — redundant via Flask |
 | Dev: `pytest` | `>=7.0.0` (`dependency-groups dev`) | 8.3.5 (`uv.lock`) | `tests/` | Keep |
 
 Key transitives (from lockfiles): `click`, `shellingham`, `anyio`, `httpcore`, `h11`, `jiter`, `tqdm`, `distro`, `jinja2`, `markupsafe`, `itsdangerous`, `blinker`, `urllib3`, `certifi`, `charset-normalizer`, `idna`, `markdown-it-py`, `pygments`, `python-dotenv`, `typing-extensions`.
