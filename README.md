@@ -107,7 +107,6 @@ The order of precedence for filename generation is: `--output` > `--auto-filenam
 Refer to `imagai generate --help` for a full list of provider-specific options (e.g., for DALL-E 3 or Stability AI).
 
 For available engines, check your configuration or use `imagai list-engines`.
-(Note: `list-engines` command needs to be implemented)
 
 ## Configuration
 
