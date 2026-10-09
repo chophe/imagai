@@ -76,6 +76,103 @@ def test_generate_cli_runs_argv_only():
     }
 
 
+# ── SEC-05: allow-list edge cases on argv tokens ──
+
+
+def test_generate_cli_rejects_metacharacters_after_allowed_prefix():
+    """ROADMAP criterion 3: an allowed first token must not excuse a later `;`."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    with patch.object(
+        web_server.subprocess,
+        "run",
+        return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ) as m:
+        resp = client.post(
+            "/api/generate-cli",
+            json={"command": "imagai generate; touch /tmp/pwned"},
+        )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert m.called is False
+    assert not Path("/tmp/pwned").exists()
+
+
+def test_generate_cli_rejects_disallowed_subcommand():
+    """`imagai rm -rf /` matches an allowed prefix but not a subcommand."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    with patch.object(
+        web_server.subprocess,
+        "run",
+        return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ) as m:
+        resp = client.post(
+            "/api/generate-cli", json={"command": "imagai rm -rf /"}
+        )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert m.called is False
+
+
+def test_generate_cli_rejects_non_allowlisted_prefix():
+    """A command outside the three prefixes is rejected before any subprocess."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    with patch.object(
+        web_server.subprocess,
+        "run",
+        return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ) as m:
+        resp = client.post("/api/generate-cli", json={"command": "ls -la"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert m.called is False
+
+
+def test_generate_cli_rejects_unbalanced_quotes():
+    """shlex.split failure must return a populated 400 body, never a raise."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.web_server import app
+
+    client = app.test_client()
+    with patch.object(
+        web_server.subprocess,
+        "run",
+        return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+    ) as m:
+        resp = client.post(
+            "/api/generate-cli", json={"command": 'imagai generate -p "unbalanced'}
+        )
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert m.called is False
+    error = resp.get_json()["error"]
+    assert isinstance(error, str) and error
+
+
 # ── SEC-08: cross-request image leakage ──
 
 
