@@ -415,7 +415,7 @@ def internal_error(error):
 
 
 def main(
-    host: str = "0.0.0.0", port: int = 5000, debug: bool = True, threaded: bool = True
+    host: str = "127.0.0.1", port: int = 5000, debug: bool = False, threaded: bool = True
 ):
     print("🎨 Starting Imagai Web Server...")
     print(f"📁 Generated images will be saved to: {UPLOAD_FOLDER.absolute()}")
