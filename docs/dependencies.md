@@ -26,7 +26,7 @@ Key transitives (from lockfiles): `click`, `shellingham`, `anyio`, `httpcore`, `
 ## 2. Outdated / risky items
 
 1. **Lower bounds too loose, no upper bounds.** `typer>=0.9`, `httpx>=0.25`, `openai>=1.0`, `flask>=2.0`, `werkzeug>=2.0` all allow a fresh install to resolve to a much newer (possibly breaking) major than the locked version. Use compatible-release pins, e.g. `typer~=0.16`, `httpx~=0.28`, `openai~=1.82`, `flask~=3.1`, or at minimum raise floors to the locked majors.
-2. **`requires-python = ">=3.8"` is stale.** Python 3.8 is EOL (Oct 2024), and the locked set (`pydantic 2.11` needs >=3.9, `rich 14` / `typer 0.16` target newer) plus `.python-version` 3.12.9 contradict it. Bump to `>=3.9` (better: `>=3.10`) and test accordingly.
+2. **`requires-python = ">=3.9"` is the current floor.** Python 3.8 is EOL (Oct 2024), and the locked set (`pydantic 2.13` needs >=3.9, `rich 15` / `typer 0.27` target newer) plus `.python-version` 3.12.9 all agree. Keep the floor at `>=3.9`: the code must stay importable on 3.9, which rules out runtime PEP 604 unions (`X | None`) in signatures.
 3. **`flask>=2.0` / `werkzeug>=2.0` allow known-vulnerable 2.0.x.** Locked versions (3.1.2 / 3.1.3) are fine, but a fresh resolver could pick an old insecure release. Raise floors to `>=3.0` (matching the lock).
 4. **`openai==1.82.1` likely stale.** The 1.x SDK moves fast; re-run `uv lock --update-package openai` (then full test) to pick up model/API fixes. Same for `httpx`, `pillow`, `pydantic`.
 5. **Lockfiles have `generate-hashes: false`, `universal: false`.** Fine for local dev, but don't ship/supply-chain-audit on these; enable hashes if the lock is consumed in CI/deploy.
