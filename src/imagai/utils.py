@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 def sanitize_filename(name: str) -> str:
     """Sanitizes a string to be a valid filename."""
-    name = re.sub(r'[<>:"/\\\\|?*\\x00-\\x1F]', "_", name)
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1F]', "_", name)
     name = re.sub(r"\s+", "_", name)
     name = name[:100]
     return name
