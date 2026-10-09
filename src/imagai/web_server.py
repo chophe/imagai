@@ -253,6 +253,17 @@ def _allowed_argv(tokens: List[str]) -> bool:
     return False
 
 
+def _png_snapshot() -> set:
+    """The *.png files currently in UPLOAD_FOLDER, read at call time.
+
+    Reading the module global here (rather than capturing it) lets a test patch
+    `web_server.UPLOAD_FOLDER` and redirect the scan.
+    """
+    if UPLOAD_FOLDER.exists():
+        return {p for p in UPLOAD_FOLDER.glob("*.png") if p.is_file()}
+    return set()
+
+
 @app.route("/api/generate-cli", methods=["POST"])
 def generate_image_cli():
     """Generate image using CLI command execution (alternative method)"""
@@ -286,6 +297,10 @@ def generate_image_cli():
 
         # Execute command
         try:
+            # Snapshot before the run so the response can carry only the files
+            # this request created.
+            before = _png_snapshot()
+
             result = subprocess.run(
                 tokens,
                 shell=False,
@@ -306,26 +321,23 @@ def generate_image_cli():
             # Try to find generated images
             if result.returncode == 0:
                 generated_images = []
-                # Look for recently created images in the generated_images directory
-                if UPLOAD_FOLDER.exists():
-                    for img_file in UPLOAD_FOLDER.glob("*.png"):
-                        # Check if file was created recently (within last 5 minutes)
-                        if (
-                            datetime.now().timestamp() - img_file.stat().st_mtime
-                        ) < 300:
-                            try:
-                                with open(img_file, "rb") as f:
-                                    img_data = f.read()
-                                    img_b64 = base64.b64encode(img_data).decode("utf-8")
-                                    generated_images.append(
-                                        {
-                                            "filename": img_file.name,
-                                            "path": str(img_file),
-                                            "data": f"data:image/png;base64,{img_b64}",
-                                        }
-                                    )
-                            except Exception as e:
-                                print(f"Error reading image {img_file}: {e}")
+                # ponytail: set-diff scan, not serialized — two truly concurrent
+                # requests can each observe the other's files. Upgrade path: a
+                # threading.Lock around snapshot -> run -> diff.
+                for img_file in sorted(_png_snapshot() - before):
+                    try:
+                        with open(img_file, "rb") as f:
+                            img_data = f.read()
+                            img_b64 = base64.b64encode(img_data).decode("utf-8")
+                            generated_images.append(
+                                {
+                                    "filename": img_file.name,
+                                    "path": str(img_file),
+                                    "data": f"data:image/png;base64,{img_b64}",
+                                }
+                            )
+                    except Exception as e:
+                        print(f"Error reading image {img_file}: {e}")
 
                 response_data["generated_images"] = generated_images
 

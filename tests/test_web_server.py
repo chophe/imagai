@@ -3,6 +3,8 @@
 import base64
 from pathlib import Path
 
+B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+
 # ── SEC-05: command execution runs argv-only ──
 
 
@@ -72,3 +74,45 @@ def test_generate_cli_runs_argv_only():
         "stderr",
         "returncode",
     }
+
+
+# ── SEC-08: cross-request image leakage ──
+
+
+def test_generate_cli_returns_only_new_files():
+    """SEC-08: a pre-existing image in the output dir must not be returned."""
+    import tempfile
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from imagai import web_server
+    from imagai.config import settings
+    from imagai.web_server import app
+
+    png_bytes = base64.b64decode(B64)
+
+    client = app.test_client()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out = Path(tmpdir) / "out"
+        out.mkdir()
+        (out / "old.png").write_bytes(png_bytes)
+
+        def side_effect(argv, **kwargs):
+            (out / "new_1.png").write_bytes(png_bytes)
+            (out / "new_2.png").write_bytes(png_bytes)
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        with patch.object(web_server, "UPLOAD_FOLDER", out), patch.object(
+            settings, "output_dir", str(out)
+        ):
+            with patch.object(web_server.subprocess, "run", side_effect=side_effect):
+                resp = client.post(
+                    "/api/generate-cli",
+                    json={"command": "imagai generate -p a cat"},
+                )
+
+    assert resp.status_code == 200
+    filenames = [img["filename"] for img in resp.get_json()["generated_images"]]
+    assert "new_1.png" in filenames
+    assert "new_2.png" in filenames
+    assert "old.png" not in filenames
