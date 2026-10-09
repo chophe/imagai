@@ -24,6 +24,32 @@ def test_main_defaults_loopback_no_debug():
     assert sig.parameters["host"].default == "127.0.0.1"
     assert sig.parameters["debug"].default is False
 
+
+def test_script_mode_reaches_app_run(capsys):
+    """SEC-03: running the file as __main__ reaches app.run and prints the banner.
+
+    The pre-plan failure was NameError at the guard. The reach is asserted
+    positively (a recorded call), so no bind failure can masquerade as success --
+    and no real socket is opened, so the test is identical on a machine where
+    port 5000 is taken.
+    """
+    import runpy
+    import sys
+
+    from flask.app import Flask
+
+    calls = []
+    original_run = Flask.run
+    Flask.run = lambda self, host=None, port=None, **kwargs: calls.append(host)
+    try:
+        runpy.run_path("src/imagai/web_server.py", run_name="__main__")
+    finally:
+        Flask.run = original_run
+
+    assert calls, "script raised before app.run was reached"
+    assert calls[0] == "127.0.0.1"
+    assert "Starting Imagai Web Server" in capsys.readouterr().out
+
 # ── SEC-05: command execution runs argv-only ──
 
 
@@ -261,6 +287,31 @@ def test_no_cors_grant_on_cross_origin_post():
     # assertion is on the header, which is a CORS fact independent of the
     # endpoint's status.
     assert resp.headers.get("Access-Control-Allow-Origin") is None
+
+
+# ── ROADMAP criterion 5: the surface this phase did not touch ──
+
+
+def test_generate_help_exits_0():
+    """A pre-existing stub; now it actually proves `generate --help` exits 0."""
+    from typer.testing import CliRunner
+
+    from imagai.cli import app as cli_app
+
+    result = CliRunner().invoke(cli_app, ["generate", "--help"])
+    assert result.exit_code == 0
+    assert "prompt" in result.output.lower()
+
+
+def test_api_generate_contract_unchanged():
+    """`POST /api/generate` keeps its 400 contract -- this phase did not touch it."""
+    from imagai.web_server import app
+
+    client = app.test_client()
+    resp = client.post("/api/generate", json={})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Prompt is required"
 
 
 def test_cross_origin_preflight_receives_no_grant():
