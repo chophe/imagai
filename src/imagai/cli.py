@@ -1,5 +1,5 @@
 import typer
-from typing import Annotated
+from typing import Annotated, Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -45,7 +45,7 @@ def main_callback(
 @app.command()
 def generate(
     prompt: Annotated[
-        str | None,
+        Optional[str],
         typer.Option(
             "--prompt",
             "-p",
