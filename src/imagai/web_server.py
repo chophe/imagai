@@ -7,6 +7,7 @@ Provides REST API endpoints to execute CLI commands from the web interface.
 import os
 import sys
 import json
+import shlex
 import subprocess
 import asyncio
 from pathlib import Path
@@ -227,6 +228,31 @@ def generate_image():
         ), 500
 
 
+# Tokens that may precede the subcommand. Kept verbatim from the strings they
+# replace at the old string-prefix guard.
+ALLOWED_COMMAND_PREFIXES = (
+    ("imagai",),
+    ("uv", "run", "imagai"),
+    ("python", "-m", "imagai"),
+)
+# The Typer app in cli.py exposes exactly these two subcommands.
+ALLOWED_SUBCOMMANDS = ("generate", "list-engines")
+
+
+def _allowed_argv(tokens: List[str]) -> bool:
+    """True when tokens are an allowed prefix followed by an allowed subcommand.
+
+    The compare is on argv tokens, not on the raw string, so `imagai; <cmd>` (whose
+    first token matches an allowed prefix) is rejected exactly like any other
+    non-allow-listed sequence — no shell ever sees the string (D-01, D-02).
+    """
+    for prefix in ALLOWED_COMMAND_PREFIXES:
+        if len(tokens) > len(prefix) and tuple(tokens[: len(prefix)]) == prefix:
+            if tokens[len(prefix)] in ALLOWED_SUBCOMMANDS:
+                return True
+    return False
+
+
 @app.route("/api/generate-cli", methods=["POST"])
 def generate_image_cli():
     """Generate image using CLI command execution (alternative method)"""
@@ -238,19 +264,31 @@ def generate_image_cli():
 
         command = data["command"]
 
-        # Security: Only allow imagai commands
-        if not command.strip().startswith(
-            ("uv run imagai", "python -m imagai", "imagai")
-        ):
-            return jsonify(
-                {"success": False, "error": "Only imagai commands are allowed"}
-            ), 400
+        # Tokenize without a shell, then gate on the resulting token sequence.
+        try:
+            tokens = shlex.split(command)
+        except ValueError as e:
+            return (
+                jsonify({"success": False, "error": f"Could not parse command: {e}"}),
+                400,
+            )
+
+        if not _allowed_argv(tokens):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Command is not in the allowed imagai command set",
+                    }
+                ),
+                400,
+            )
 
         # Execute command
         try:
             result = subprocess.run(
-                command,
-                shell=True,
+                tokens,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
