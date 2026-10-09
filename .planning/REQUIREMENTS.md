@@ -19,15 +19,15 @@ capability; everything here makes the tool runnable, correct, and maintainable.
 
 - [x] **SEC-01**: An `output` filename that is absolute, contains `..`, or otherwise escapes the output directory is rejected with an error rather than written
 - [x] **SEC-02**: Every path written by the image save pipeline resolves inside `settings.output_dir`, verified by a test
-- [ ] **SEC-03**: `python src/imagai/web_server.py` starts the server without raising `NameError`
+- [x] **SEC-03**: `python src/imagai/web_server.py` starts the server without raising `NameError`
 - [ ] **SEC-04**: HTTP endpoints validate request payloads before dispatching to core, returning 4xx on invalid input
-- [ ] **SEC-05**: `POST /api/generate-cli` cannot execute attacker-chosen shell — no `shell=True`, and the
+- [x] **SEC-05**: `POST /api/generate-cli` cannot execute attacker-chosen shell — no `shell=True`, and the
       allow-list is enforced on an argv token list rather than a shell string
-- [ ] **SEC-06**: The dev server binds `127.0.0.1` with `debug=False` by default, so the default
+- [x] **SEC-06**: The dev server binds `127.0.0.1` with `debug=False` by default, so the default
       `imagai-web` invocation is not reachable from other hosts
-- [ ] **SEC-07**: The API is not reachable cross-origin from arbitrary web pages — wide-open CORS is
+- [x] **SEC-07**: The API is not reachable cross-origin from arbitrary web pages — wide-open CORS is
       removed, since the bundled UI is served same-origin and never needed it
-- [ ] **SEC-08**: `POST /api/generate-cli` returns only the images that request created, verified by a
+- [x] **SEC-08**: `POST /api/generate-cli` returns only the images that request created, verified by a
       test proving a pre-existing file in the output directory is not returned
 
 ### Error Handling
@@ -90,12 +90,12 @@ Populated during roadmap creation.
 | ENV-04 | Phase 1 | Complete |
 | SEC-01 | Phase 2 | Complete |
 | SEC-02 | Phase 2 | Complete |
-| SEC-03 | Phase 2.5 | Pending |
+| SEC-03 | Phase 2.5 | Complete |
 | SEC-04 | Phase 3 | Pending |
-| SEC-05 | Phase 2.5 | Pending |
-| SEC-06 | Phase 2.5 | Pending |
-| SEC-07 | Phase 2.5 | Pending |
-| SEC-08 | Phase 2.5 | Pending |
+| SEC-05 | Phase 2.5 | Complete |
+| SEC-06 | Phase 2.5 | Complete |
+| SEC-07 | Phase 2.5 | Complete |
+| SEC-08 | Phase 2.5 | Complete |
 | ERR-01 | Phase 4 | Pending |
 | ERR-02 | Phase 4 | Pending |
 | CFG-01 | Phase 5 | Pending |
