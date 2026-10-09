@@ -39,11 +39,13 @@ venv.bak
 *.sln
 *.sw?
 
-# Rye
-.rye/
-
 # Generated files
 generated_images/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+/.adal/
+/.cursor/
+/.kiro/
+/.windsurf/
+/graphify-out/
