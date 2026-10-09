@@ -371,10 +371,10 @@ def list_engines_command(
                 )
             )
 
-    # If the OpenAI client is unavailable, nudge user to install deps
+    # If the OpenAI client is unavailable, nudge user to restore dependencies
     if not OpenAI:
         console.print(
-            "[yellow]Neither 'openai' nor 'requests' packages are available; cannot fetch models. Install with `uv sync`.[/yellow]"
+            "[yellow]The 'openai' package is not available; cannot fetch models. Run `uv sync` to install project dependencies.[/yellow]"
         )
 
 
