@@ -973,3 +973,44 @@ def test_api_generate_rejects_non_string_engine(client, engine_ready, value, lea
     assert "engine" in body["error"]
     assert leaked not in resp.get_data(as_text=True)
     assert core.called is False
+
+
+# ── SEC-04: an unreadable request body (WR-03) ──
+#
+# `request.get_json()` raises for a malformed body (Flask's own 400) and for a
+# wrong Content-Type (415); inside the route's try both surfaced as the
+# catch-all 500. A JSON *array* body is the same gap one layer down: the key
+# test passes by membership and `data[key]` then raises TypeError.
+
+
+@pytest.mark.parametrize("endpoint", ["/api/generate", "/api/generate-cli"])
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(
+            {"data": "{not json", "content_type": "application/json"},
+            id="malformed-json",
+        ),
+        pytest.param(
+            {
+                "data": '{"prompt": "a cat", "command": "imagai list-engines"}',
+                "content_type": "text/plain",
+            },
+            id="wrong-content-type",
+        ),
+        pytest.param({"json": ["prompt", "command"]}, id="json-array-body"),
+    ],
+)
+def test_malformed_request_body_is_a_400_not_the_catch_all_500(
+    client, endpoint, body
+):
+    """A body the boundary cannot read is the caller's 400, on either endpoint."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(endpoint, **body)
+
+    assert resp.status_code == 400
+    payload = resp.get_json()
+    assert payload["success"] is False
+    assert "type" not in payload, "the catch-all 500 shape answered a malformed body"
+    assert core.called is False

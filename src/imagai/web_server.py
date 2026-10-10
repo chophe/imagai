@@ -98,7 +98,22 @@ def get_engines():
 def generate_image():
     """Generate image using the core functionality"""
     try:
-        data = request.get_json()
+        # get_json() raises for a malformed body (Flask's own 400) and for a
+        # wrong Content-Type (415); inside this try both surfaced as the
+        # catch-all 500. silent=True turns the raise into None, and the
+        # existing `not data` guard below then answers a clean 400. The
+        # isinstance covers the same gap one layer down: a JSON array body
+        # passes the key test by membership, and data["prompt"] on a list
+        # raises TypeError into the catch-all.
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return (
+                jsonify(
+                    {"success": False, "error": "Request body must be a JSON object"}
+                ),
+                400,
+            )
 
         if not data or "prompt" not in data:
             return jsonify({"success": False, "error": "Prompt is required"}), 400
@@ -359,7 +374,18 @@ _GENERATE_CLI_LOCK = threading.Lock()
 def generate_image_cli():
     """Generate image using CLI command execution (alternative method)"""
     try:
-        data = request.get_json()
+        # Same boundary as /api/generate: an unreadable body must be the
+        # caller's 400 rather than the catch-all 500, including the JSON-array
+        # form whose key test passes by membership.
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return (
+                jsonify(
+                    {"success": False, "error": "Request body must be a JSON object"}
+                ),
+                400,
+            )
 
         if not data or "command" not in data:
             return jsonify({"success": False, "error": "Command is required"}), 400
