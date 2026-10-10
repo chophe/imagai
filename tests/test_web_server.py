@@ -1014,3 +1014,64 @@ def test_malformed_request_body_is_a_400_not_the_catch_all_500(
     assert payload["success"] is False
     assert "type" not in payload, "the catch-all 500 shape answered a malformed body"
     assert core.called is False
+
+
+# ── SEC-04: the cross-cutting proof the model-field block was missing (WR-04) ──
+#
+# The per-field tests above each pin one field. These two cover the shape the
+# SEC-04 block had no coverage for at all: that a malformed seed, strength,
+# input_image or engine never reaches the provider, and that the 400 body
+# names the field without quoting the caller's value back at them.
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        {"seed": "abc"},
+        {"strength": "abc"},
+        {"input_image": "!!!x!!!"},
+        {"engine": {"a": 1}},
+    ],
+)
+def test_api_generate_malformed_params_never_reach_provider(
+    client, engine_ready, malformed
+):
+    """No payload the gate does not model crosses into the provider either."""
+    core = AsyncMock(return_value=[])
+    payload = {"prompt": "a cat"}
+    payload.update(malformed)
+
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json=payload)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert core.called is False
+
+
+def test_api_generate_param_error_body_never_echoes_caller_input(client, engine_ready):
+    """T-03-03: the field map carries messages only, for the coerced fields too."""
+    secret = "SEKRIT-PARAM-5b2e"
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(
+            "/api/generate",
+            json={
+                "prompt": "a cat",
+                "seed": secret,
+                "strength": secret,
+                "input_image": secret,
+            },
+        )
+
+    assert resp.status_code == 400
+    body = resp.get_data(as_text=True)
+    payload = resp.get_json()
+    assert payload["success"] is False
+    # The rejection is field-level: the field name reaches the caller, the
+    # value does not.
+    assert set(payload["error"]) <= {"seed", "strength", "input_image"}
+    for leak in (secret, "binascii", "unhashable"):
+        assert leak not in body, f"{leak!r} leaked into the 400 body: {body}"
+    assert "type" not in payload
+    assert core.called is False
