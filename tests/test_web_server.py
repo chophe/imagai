@@ -943,3 +943,33 @@ def test_api_generate_still_decodes_a_valid_input_image(client, engine_ready):
 
     assert resp.status_code == 200
     assert seen[0].extra_params["input_image"] == base64.b64decode(B64)
+
+
+# ── SEC-04: `engine` is tested for membership before the gate (WR-02) ──
+#
+# `engine not in settings.engines` is one line above the new pydantic gate, so
+# an unhashable engine (a JSON object or array) raised `unhashable type` and
+# became a 500 that named the caller's own JSON type.
+
+
+@pytest.mark.parametrize(
+    "value,leaked",
+    [({"a": 1}, "unhashable type"), (["a"], "unhashable type"), (1234567, "1234567")],
+)
+def test_api_generate_rejects_non_string_engine(client, engine_ready, value, leaked):
+    """A non-string engine is a malformed field: 400 naming no internal detail.
+
+    A hashable non-string (an int) is covered too: the membership test answers
+    a 400 that quotes the caller's value, so the assertion is that neither the
+    value nor the internal exception text reaches the body.
+    """
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "engine": value})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "engine" in body["error"]
+    assert leaked not in resp.get_data(as_text=True)
+    assert core.called is False

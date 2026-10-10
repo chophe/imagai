@@ -118,6 +118,18 @@ def generate_image():
                 }
             ), 400
 
+        # A JSON object/array makes the membership test below raise
+        # `unhashable type` into the catch-all 500, one line above the pydantic
+        # gate. A malformed field is the caller's mistake: 400 with the field
+        # name only, matching how the prompt/engine presence guards answer.
+        if not isinstance(engine, str):
+            return (
+                jsonify(
+                    {"success": False, "error": {"engine": "engine must be a string"}}
+                ),
+                400,
+            )
+
         if engine not in settings.engines:
             return jsonify(
                 {"success": False, "error": f'Engine "{engine}" is not configured'}
