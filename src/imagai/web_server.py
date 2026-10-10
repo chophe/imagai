@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from imagai.config import settings
 from imagai.core import generate_image_core
 from imagai.models import ImageGenerationRequest
+from pydantic import ValidationError
 
 app = Flask(__name__)
 
@@ -34,6 +35,21 @@ UPLOAD_FOLDER = Path(settings.output_dir)
 UPLOAD_FOLDER.mkdir(exist_ok=True)
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+
+
+def _field_errors(ve: ValidationError) -> Dict[str, str]:
+    """Render a pydantic ValidationError as a {field: message} map.
+
+    Only the field name and message are echoed back. pydantic's `input`, `url`
+    and `ctx` sub-keys carry the caller's own payload and internal schema URLs,
+    and mirroring those at an untrusted caller is a disclosure (T-03-03).
+    """
+    errors: Dict[str, str] = {}
+    for err in ve.errors():
+        loc = err.get("loc") or ()
+        key = str(loc[-1]) if loc else "_request"
+        errors.setdefault(key, err.get("msg", "Invalid value"))
+    return errors
 
 
 @app.route("/")
@@ -126,51 +142,42 @@ def generate_image():
                 else:
                     extra_params[param_key] = data[key]
 
-        # Create request object
-        image_request = ImageGenerationRequest(
-            prompt=prompt,
-            engine=engine,
-            output_filename=data.get("output"),
-            n=int(data.get("n", 1)),
-            size=data.get("size", "1024x1024"),
-            quality=data.get("quality", "standard"),
-            style=data.get("style", "vivid"),
-            response_format=data.get("response_format", "b64_json"),
-            extra_params=extra_params,
-            verbose=data.get("verbose", False),
-            auto_filename=data.get("auto_filename", False),
-            random_filename=data.get("random_filename", False),
-        )
-
-        # Process input image if provided
+        # Decode the input image once, before the request is built, so the
+        # single build below is constructed with the decoded bytes.
         if input_image:
-            # Convert base64 data URL to bytes
             if input_image.startswith("data:image/"):
-                # Extract base64 data from data URL
-                header, encoded = input_image.split(",", 1)
-                image_data = base64.b64decode(encoded)
-                # Add to extra_params for the core function
-                extra_params["input_image"] = image_data
+                # Extract base64 data from the data URL
+                encoded = input_image.split(",", 1)[1]
             else:
-                # Assume it's already base64 encoded
-                image_data = base64.b64decode(input_image)
-                extra_params["input_image"] = image_data
+                # Assume it is already base64 encoded
+                encoded = input_image
+            # Add to extra_params for the core function
+            extra_params["input_image"] = base64.b64decode(encoded)
 
-        # Update the request object with processed input image
-        image_request = ImageGenerationRequest(
-            prompt=prompt,
-            engine=engine,
-            output_filename=data.get("output"),
-            n=int(data.get("n", 1)),
-            size=data.get("size", "1024x1024"),
-            quality=data.get("quality", "standard"),
-            style=data.get("style", "vivid"),
-            response_format=data.get("response_format", "b64_json"),
-            extra_params=extra_params,
-            verbose=data.get("verbose", False),
-            auto_filename=data.get("auto_filename", False),
-            random_filename=data.get("random_filename", False),
-        )
+        # Pass only the keys actually present. A `.get()` with a None fallback
+        # would override the model's own defaults (e.g. n=1), so absent fields
+        # keep pydantic's default while present ones arrive raw to be validated.
+        validated = {
+            key: data[key] for key in ("size", "n", "quality", "style") if key in data
+        }
+
+        # Create request object
+        try:
+            image_request = ImageGenerationRequest(
+                prompt=prompt,
+                engine=engine,
+                output_filename=data.get("output"),
+                response_format=data.get("response_format", "b64_json"),
+                extra_params=extra_params,
+                verbose=data.get("verbose", False),
+                auto_filename=data.get("auto_filename", False),
+                random_filename=data.get("random_filename", False),
+                **validated,
+            )
+        except ValidationError as ve:
+            # Malformed payload: a field-level 400, never the catch-all 500 and
+            # never the provider.
+            return jsonify({"success": False, "error": _field_errors(ve)}), 400
 
         # Generate image using core functionality
         async def _generate():
