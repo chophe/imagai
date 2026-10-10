@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from imagai.config import settings
 from imagai.core import generate_image_core
 from imagai.models import ImageGenerationRequest
+from imagai.utils import _contained_path
 from pydantic import ValidationError
 
 app = Flask(__name__)
@@ -178,6 +179,24 @@ def generate_image():
             # Malformed payload: a field-level 400, never the catch-all 500 and
             # never the provider.
             return jsonify({"success": False, "error": _field_errors(ve)}), 400
+
+        # Reject an escaping output here, exactly where the save layer would.
+        # Without this, a traversal attempt is silently absorbed downstream
+        # (save returns None) and the caller never learns the path was refused.
+        if image_request.output_filename and not _contained_path(
+            Path(settings.output_dir) / image_request.output_filename
+        ):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": {
+                            "output": "output must be a bare filename inside the configured output directory"
+                        },
+                    }
+                ),
+                400,
+            )
 
         # Generate image using core functionality
         async def _generate():
