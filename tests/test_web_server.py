@@ -804,3 +804,67 @@ def test_api_generate_build_is_identical_before_and_after_input_image_decode(
     )
     assert with_img.extra_params["input_image"] == base64.b64decode(B64)
     assert "input_image" not in (without.extra_params or {})
+
+
+# ── SEC-04: the valid path is unchanged (T-03-06) ──
+
+
+def test_api_generate_valid_request_returns_frozen_results_shape(
+    client, engine_ready, tmp_path
+):
+    """A valid request still returns 200 with exactly the frozen result keys."""
+    png = tmp_path / "happy.png"
+    png.write_bytes(base64.b64decode(B64))
+
+    async def dispatch(request):
+        return [
+            ImageGenerationResponse(
+                saved_path=str(png),
+                image_url="https://example.invalid/happy.png",
+                image_b64_json=B64,
+            )
+        ]
+
+    with patch.object(web_server, "UPLOAD_FOLDER", tmp_path), patch.object(
+        settings, "output_dir", str(tmp_path)
+    ), patch.object(web_server, "generate_image_core", dispatch):
+        resp = client.post("/api/generate", json={"prompt": "a cat"})
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["success"] is True
+    assert set(body) == {"success", "results", "command"}
+
+    assert len(body["results"]) == 1
+    result = body["results"][0]
+    assert set(result) == {
+        "index",
+        "success",
+        "error",
+        "saved_path",
+        "image_data",
+        "image_url",
+        "image_b64_json",
+    }
+    assert result["index"] == 1
+    assert result["success"] is True
+    assert result["error"] is None
+    assert result["saved_path"] == str(png)
+    assert result["image_data"].startswith("data:image/png;base64,")
+    assert result["image_url"] == "https://example.invalid/happy.png"
+    assert result["image_b64_json"] == B64
+
+
+# ── SEC-03 / Phase 4 boundary: the surface this phase did not touch ──
+
+
+def test_no_422_for_malformed_input():
+    """Every field rejection is a 400; pydantic's 422 is not the contract."""
+    source = (Path(__file__).resolve().parents[1] / "src" / "imagai" / "web_server.py").read_text()
+    assert "422" not in source
+
+
+def test_generate_catch_all_500_body_is_untouched():
+    """Phase 3 did not start Phase 4: the `str(e)` 500 body is still there."""
+    source = (Path(__file__).resolve().parents[1] / "src" / "imagai" / "web_server.py").read_text()
+    assert '"error": str(e), "type": type(e).__name__}' in source
