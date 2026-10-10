@@ -868,3 +868,38 @@ def test_generate_catch_all_500_body_is_untouched():
     """Phase 3 did not start Phase 4: the `str(e)` 500 body is still there."""
     source = (Path(__file__).resolve().parents[1] / "src" / "imagai" / "web_server.py").read_text()
     assert '"error": str(e), "type": type(e).__name__}' in source
+
+
+# ── SEC-04: `seed`/`strength` are coerced outside the pydantic gate (CR-01) ──
+#
+# `seed` and `strength` are provider extra_params the request model does not
+# carry, so the endpoint coerces them itself, ahead of the gate. `int()` and
+# `float()` raise ValueError/TypeError whose message quotes the caller's own
+# value -- that used to travel into the catch-all as a 500, which is the exact
+# echo class T-03-03 forbids.
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("seed", "abc"),
+        ("seed", "3.5"),
+        ("seed", [1]),
+        ("seed", {"a": 1}),
+        ("strength", "abc"),
+        ("strength", [0.5]),
+    ],
+)
+def test_api_generate_rejects_non_numeric_seed_or_strength(
+    client, engine_ready, field, value
+):
+    """A non-numeric seed/strength is a field-level 400, never a 500."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", field: value})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert field in body["error"]
+    assert core.called is False

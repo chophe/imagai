@@ -136,12 +136,27 @@ def generate_image():
 
         for key, param_key in param_mapping.items():
             if key in data and data[key]:
-                if key in ["seed"] and data[key]:
-                    extra_params[param_key] = int(data[key])
-                elif key in ["strength"] and data[key]:
-                    extra_params[param_key] = float(data[key])
-                else:
-                    extra_params[param_key] = data[key]
+                # seed/strength are provider extra_params the request model
+                # does not carry, so they are coerced here rather than under
+                # the pydantic gate. A non-numeric value is a malformed field:
+                # 400 with the field name only. int()/float() raise
+                # ValueError/TypeError whose message quotes the caller's own
+                # value -- the echo class T-03-03 forbids -- and on a dict/list
+                # value that reached the catch-all as a 500.
+                try:
+                    if key == "seed":
+                        extra_params[param_key] = int(data[key])
+                    elif key == "strength":
+                        extra_params[param_key] = float(data[key])
+                    else:
+                        extra_params[param_key] = data[key]
+                except (TypeError, ValueError):
+                    return (
+                        jsonify(
+                            {"success": False, "error": {key: f"{key} must be a number"}}
+                        ),
+                        400,
+                    )
 
         # Decode the input image once, before the request is built, so the
         # single build below is constructed with the decoded bytes.
