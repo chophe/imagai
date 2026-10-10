@@ -1,11 +1,53 @@
-"""SEC-03/05/06/07/08 web server safety tests."""
+"""SEC-04 boundary rejection tests, plus the SEC-03/05/06/07/08 safety tests."""
 
 import base64
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from imagai import web_server
+from imagai.config import settings
+from imagai.models import ImageGenerationRequest, ImageGenerationResponse
 
 B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
-# ── SEC-03/SEC-06: server startup ordering and bind defaults ──
+
+@pytest.fixture
+def client():
+    """One shared Flask test client for the whole file."""
+    return web_server.app.test_client()
+
+
+@pytest.fixture
+def engine_ready():
+    """Make a configured engine resolve, so a payload reaches the schema gate.
+
+    `generate_image()` checks engine presence/configuration *before* the
+    pydantic gate. With `default_engine` unset every payload would 400 for the
+    engine reason, so a field-rejection test would pass for the wrong reason
+    and a config variance could masquerade as a pass. Patched once, here, and
+    asserted once, here.
+    """
+    if not settings.engines:
+        pytest.fail("no engines configured; every SEC-04 payload needs a valid one")
+    name = settings.default_engine or next(iter(settings.engines))
+    assert name in settings.engines, f"{name!r} is not a configured engine"
+    with patch.object(settings, "default_engine", name):
+        yield name
+
+
+def _dispatch(seen):
+    """A mocked provider that records the request it was handed and returns no images."""
+
+    async def _dispatch_inner(request):
+        seen.append(request)
+        return []
+
+    return _dispatch_inner
+
+
+# ── SEC-04: server startup ordering and bind defaults ──
 
 
 def test_main_defined_before_main_guard():
@@ -490,3 +532,275 @@ def test_cross_origin_preflight_receives_no_grant():
     )
 
     assert resp.headers.get("Access-Control-Allow-Origin") is None
+
+
+# ── SEC-04: one rejection per malformed field (T-03-05) ──
+#
+# Every payload below is otherwise valid (prompt + a configured engine via the
+# `engine_ready` fixture), and dispatch is always mocked, so the only thing
+# under test is the boundary's decision about that one field.
+
+
+def test_api_generate_rejects_size_outside_enum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "size": "10x10"})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "size" in body["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_non_integer_n(client, engine_ready):
+    """The ROADMAP-named ValueError case: a clean 400, not the old 500."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "n": "abc"})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "n" in body["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_n_below_minimum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "n": 0})
+
+    assert resp.status_code == 400
+    assert "n" in resp.get_json()["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_n_above_maximum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "n": 11})
+
+    assert resp.status_code == 400
+    assert "n" in resp.get_json()["error"]
+    assert core.called is False
+
+
+def test_api_generate_accepts_n_at_both_bounds(client, engine_ready):
+    """The bounds are pydantic's `ge=1, le=10` -- no new limit was introduced."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        for n in (1, 10):
+            resp = client.post("/api/generate", json={"prompt": "a cat", "n": n})
+
+            assert resp.status_code == 200, f"n={n} was schema-rejected"
+            assert "n" not in (resp.get_json().get("error") or {})
+
+
+def test_api_generate_rejects_quality_outside_enum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "quality": "ultra"})
+
+    assert resp.status_code == 400
+    assert "quality" in resp.get_json()["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_style_outside_enum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": "a cat", "style": "neon"})
+
+    assert resp.status_code == 400
+    assert "style" in resp.get_json()["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_response_format_outside_enum(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(
+            "/api/generate", json={"prompt": "a cat", "response_format": "jpeg"}
+        )
+
+    assert resp.status_code == 400
+    assert "response_format" in resp.get_json()["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_non_string_prompt(client, engine_ready):
+    """A present-but-malformed prompt is a field error, not the old 500."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json={"prompt": 12345})
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "prompt" in body["error"]
+    assert core.called is False
+
+
+def test_api_generate_rejects_absolute_output(client, engine_ready):
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(
+            "/api/generate", json={"prompt": "a cat", "output": "/tmp/evil.png"}
+        )
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "output" in body["error"]
+    assert core.called is False
+    assert not Path("/tmp/evil.png").exists()
+
+
+def test_api_generate_rejects_traversal_output(client, engine_ready, tmp_path):
+    """`../../escape.png` is refused at the boundary and nothing is written."""
+    out = tmp_path / "out"
+    out.mkdir()
+    core = AsyncMock(return_value=[])
+    with patch.object(settings, "output_dir", str(out)):
+        with patch.object(web_server, "generate_image_core", core):
+            resp = client.post(
+                "/api/generate", json={"prompt": "a cat", "output": "../../escape.png"}
+            )
+
+    assert resp.status_code == 400
+    assert "output" in resp.get_json()["error"]
+    assert core.called is False
+    # The escape target sits inside the (fresh) temp root, so this is the
+    # whole filesystem neighbourhood the traversal could have reached.
+    assert not (tmp_path / "escape.png").exists()
+
+
+def test_api_generate_rejects_subdirectory_output(client, engine_ready, tmp_path):
+    """A subdirectory is outside the bare-basename contract, so it is refused."""
+    out = tmp_path / "out"
+    out.mkdir()
+    core = AsyncMock(return_value=[])
+    with patch.object(settings, "output_dir", str(out)):
+        with patch.object(web_server, "generate_image_core", core):
+            resp = client.post(
+                "/api/generate", json={"prompt": "a cat", "output": "sub/img.png"}
+            )
+
+    assert resp.status_code == 400
+    assert "output" in resp.get_json()["error"]
+    assert core.called is False
+    assert not (out / "sub").exists()
+
+
+@pytest.mark.parametrize(
+    "malformed",
+    [
+        {"size": "10x10"},
+        {"n": "abc"},
+        {"n": 0},
+        {"n": 11},
+        {"quality": "ultra"},
+        {"style": "neon"},
+        {"response_format": "jpeg"},
+        {"output": "/tmp/evil.png"},
+        {"output": "../x.png"},
+    ],
+)
+def test_api_generate_malformed_payload_never_reaches_provider(
+    client, engine_ready, malformed
+):
+    """The one CONTEXT sentence: no malformed payload crosses into the provider.
+
+    The single proof is the mock: `generate_image_core` is replaced for the
+    request, so a 400 here cannot have come from a live call -- and if the
+    boundary ever stops rejecting, `called` turns True and this goes red.
+    """
+    core = AsyncMock(return_value=[])
+    payload = {"prompt": "a cat"}
+    payload.update(malformed)
+
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post("/api/generate", json=payload)
+
+    assert resp.status_code == 400
+    assert resp.get_json()["success"] is False
+    assert core.called is False
+
+
+def test_api_generate_error_body_never_echoes_caller_input(client, engine_ready):
+    """T-03-03: the field map carries messages only -- no payload, no schema URLs."""
+    secret = "SEKRIT-PAYLOAD-9f3a"
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(
+            "/api/generate",
+            json={"prompt": "a cat", "n": secret, "size": secret, "quality": secret},
+        )
+
+    assert resp.status_code == 400
+    body = resp.get_data(as_text=True)
+    error = resp.get_json()["error"]
+    assert set(error) == {"n", "size", "quality"}
+    for leak in (secret, "pydantic", "errors/", "input_value", "ctx", "http"):
+        assert leak not in body, f"{leak!r} leaked into the 400 body: {body}"
+    assert core.called is False
+
+
+def test_api_generate_absent_fields_keep_model_defaults(client, engine_ready):
+    """The only-present-keys splat: an absent `n` keeps pydantic's default of 1."""
+    seen = []
+    with patch.object(web_server, "generate_image_core", _dispatch(seen)):
+        resp = client.post("/api/generate", json={"prompt": "a cat"})
+
+    assert resp.status_code == 200
+    assert seen[0].n == 1
+    assert seen[0].size == "1024x1024"
+    assert seen[0].response_format == "b64_json"
+
+
+def test_api_generate_builds_the_request_once(client, engine_ready):
+    """The duplicate build is really gone: one construction, fed decoded bytes."""
+    built = []
+    real = web_server.ImageGenerationRequest
+
+    class Counting(real):
+        def __init__(self, **kwargs):
+            built.append(kwargs)
+            super().__init__(**kwargs)
+
+    with patch.object(web_server, "ImageGenerationRequest", Counting), patch.object(
+        web_server, "generate_image_core", _dispatch([])
+    ):
+        resp = client.post(
+            "/api/generate",
+            json={"prompt": "a cat", "input_image": f"data:image/png;base64,{B64}"},
+        )
+
+    assert resp.status_code == 200
+    assert len(built) == 1, "the request was built more than once"
+    assert built[0]["extra_params"]["input_image"] == base64.b64decode(B64)
+
+
+def test_api_generate_build_is_identical_before_and_after_input_image_decode(
+    client, engine_ready
+):
+    """The collapsed build: with an image, the request is the plain one + bytes."""
+    seen = []
+    with patch.object(web_server, "generate_image_core", _dispatch(seen)):
+        plain = client.post("/api/generate", json={"prompt": "a cat"})
+        with_image = client.post(
+            "/api/generate", json={"prompt": "a cat", "input_image": B64}
+        )
+
+    assert plain.status_code == 200
+    assert with_image.status_code == 200
+    assert len(seen) == 2
+
+    without, with_img = seen
+    assert (
+        with_img.model_dump(exclude={"extra_params"})
+        == without.model_dump(exclude={"extra_params"})
+    )
+    assert with_img.extra_params["input_image"] == base64.b64decode(B64)
+    assert "input_image" not in (without.extra_params or {})
