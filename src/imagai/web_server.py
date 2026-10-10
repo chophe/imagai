@@ -161,14 +161,42 @@ def generate_image():
         # Decode the input image once, before the request is built, so the
         # single build below is constructed with the decoded bytes.
         if input_image:
-            if input_image.startswith("data:image/"):
-                # Extract base64 data from the data URL
-                encoded = input_image.split(",", 1)[1]
-            else:
-                # Assume it is already base64 encoded
-                encoded = input_image
-            # Add to extra_params for the core function
-            extra_params["input_image"] = base64.b64decode(encoded)
+            # A malformed input_image is a field error, not the catch-all 500:
+            # three distinct raises live in these two lines -- binascii.Error
+            # (a ValueError) on bad base64, IndexError on a data URL without a
+            # comma, and AttributeError on a non-string -- and every one of
+            # them quoted caller input on its way into the 500 body.
+            if not isinstance(input_image, str):
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {"input_image": "input_image must be a string"},
+                        }
+                    ),
+                    400,
+                )
+            try:
+                if input_image.startswith("data:image/"):
+                    # Extract base64 data from the data URL
+                    encoded = input_image.split(",", 1)[1]
+                else:
+                    # Assume it is already base64 encoded
+                    encoded = input_image
+                # Add to extra_params for the core function
+                extra_params["input_image"] = base64.b64decode(encoded)
+            except (ValueError, IndexError):
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "error": {
+                                "input_image": "input_image must be valid base64"
+                            },
+                        }
+                    ),
+                    400,
+                )
 
         # Pass only the keys actually present. A `.get()` with a None fallback
         # would override the model's own defaults (e.g. n=1), so absent fields

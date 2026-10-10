@@ -903,3 +903,43 @@ def test_api_generate_rejects_non_numeric_seed_or_strength(
     assert body["success"] is False
     assert field in body["error"]
     assert core.called is False
+
+
+# ── SEC-04: `input_image` is decoded ahead of the gate (WR-01) ──
+#
+# The base64 decode runs before the request is built, so a malformed value has
+# three distinct raise paths -- binascii.Error (a ValueError) on bad base64,
+# IndexError on a data URL without a comma, and AttributeError on a non-string
+# -- and all three quoted caller input on their way into the catch-all 500.
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["!!!x!!!", "data:image/png;base64", 12345, ["x"]],
+)
+def test_api_generate_rejects_malformed_input_image(client, engine_ready, value):
+    """A malformed input_image is a field-level 400, never a 500."""
+    core = AsyncMock(return_value=[])
+    with patch.object(web_server, "generate_image_core", core):
+        resp = client.post(
+            "/api/generate", json={"prompt": "a cat", "input_image": value}
+        )
+
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body["success"] is False
+    assert "input_image" in body["error"]
+    assert core.called is False
+
+
+def test_api_generate_still_decodes_a_valid_input_image(client, engine_ready):
+    """The guard pins the malformed paths only; a valid decode is unchanged."""
+    seen = []
+    with patch.object(web_server, "generate_image_core", _dispatch(seen)):
+        resp = client.post(
+            "/api/generate",
+            json={"prompt": "a cat", "input_image": f"data:image/png;base64,{B64}"},
+        )
+
+    assert resp.status_code == 200
+    assert seen[0].extra_params["input_image"] == base64.b64decode(B64)
