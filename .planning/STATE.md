@@ -1,20 +1,20 @@
 ---
 gsd_state_version: "1.0"
 milestone: v1.0
-current_phase: 3
-current_phase_name: HTTP Boundary
+current_phase: 4
+current_phase_name: Error Propagation
 status: planning
-stopped_at: Phase 2.5 complete, ready to plan Phase 3
-last_updated: "2026-10-09T21:29:19.892Z"
-last_activity: 2026-10-10
-last_activity_desc: Phase 2.5 complete, transitioned to Phase 3
-state_head: cfef8760d47e96951ff3197e6537167cb16429b1
+stopped_at: Phase 3 complete, ready to plan Phase 4
+last_updated: "2026-10-12T17:46:14.188Z"
+last_activity: 2026-10-12
+last_activity_desc: Phase 3 complete, transitioned to Phase 4
+state_head: 00fc169b1652b78741068502a02eb6af963ae7f3
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 8
-  percent: 43
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 10
+  percent: 57
 ---
 
 # Project State
@@ -28,18 +28,18 @@ See: .planning/PROJECT.md (updated 2026-10-07)
 
 ## Current Position
 
-Phase: 3 — HTTP Boundary
+Phase: 4 — Error Propagation
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-10-10 — Phase 2.5 complete, transitioned to Phase 3
+Last activity: 2026-10-12 — Phase 3 complete, transitioned to Phase 4
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8
+- Total plans completed: 10
 - Average duration: n/a
 - Total execution time: 0.0 hours
 
@@ -50,6 +50,7 @@ Progress: [████░░░░░░] 43%
 | 1 | 3 | - | - |
 | 02 | 2 | - | - |
 | 2.5 | 3 | - | - |
+| 3 | 2 | - | - |
 
 **Recent Trend:**
 
@@ -105,6 +106,17 @@ None yet.
 
 ### Blockers/Concerns
 
+- **Live-provider generation is unverified in this environment (not a gate, but a real coverage gap).**
+  This milestone cannot complete a real image generation: the configured key is rejected
+  (`401 Incorrect API key`, `avalai.ir`) and the OpenAI-direct fallback is region-blocked
+  (`403 unsupported_country_region_territory`). Phase 3's `03-VERIFICATION.md` verified the 200
+  `results` **shape** by running the pre- and post-phase servers side by side with identical
+  stubbed provider results (full JSON bodies equal), so the boundary contract is proven; only the
+  live external-service round trip is unproven. This is recorded, not hidden, and applies equally
+  to Phases 1, 2, 2.5 and 3. **To close it:** run
+  `uv run imagai generate -p "a cat"` (or `POST /api/generate` a valid prompt) with a working,
+  non-region-blocked key and confirm real `saved_path`/`image_data` values.
+
 - **Resolved — write collision between two roadmapper invocations.** A concurrent invocation wrote ROADMAP.md and STATE.md at 14:54 on 2026-10-02, overwriting this draft and leaving the three planning files mutually inconsistent (REQUIREMENTS.md traced CFG-03 to Phase 1; the competing roadmap put it in Phase 5). This version was restored and the competing draft preserved at `.planning/research/ROADMAP-alternate-2026-10-02.md`. The one substantive difference is the CFG-03 placement. If the orchestrator spawned two roadmappers, only one should proceed.
 - **Resolved — Phase 1 was the hard blocker.** Phase 1 shipped the uv toolchain: `uv sync` + `uv run pytest` pass from a clean checkout on the pinned 3.12.9 interpreter, rye lockfiles deleted, `typing.Annotated` from stdlib. The tool now runs.
 - **Requirement count discrepancy.** REQUIREMENTS.md stated "17 total" v1 requirements; 16 REQ-IDs exist. All 16 are mapped — the count was an overcount, not a missing ID. Coverage line corrected during this step.
@@ -145,5 +157,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-10-07T16:12:49.386Z
-Stopped at: Phase 2.5 complete, ready to plan Phase 3
+Stopped at: Phase 3 complete, ready to plan Phase 4
 Resume file: .planning/phases/02.5-web-server-safety/02.5-CONTEXT.md
