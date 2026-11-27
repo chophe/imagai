@@ -4,17 +4,17 @@
     "postToolUse": [
       {
         "matcher": "Read|Grep|Glob|Search|Shell",
-        "command": "node \"/Users/ali/dev/python/AI/imagai/.cursor/hooks/graft-hooks.cjs\" cursor-post-tool"
+        "command": "node \"/Users/ali/orca/workspaces/imagai/tuna/.cursor/hooks/trail-hooks.cjs\" cursor-post-tool || exit 0"
       }
     ],
     "afterMCPExecution": [
       {
-        "command": "node \"/Users/ali/dev/python/AI/imagai/.cursor/hooks/graft-hooks.cjs\" cursor-mcp"
+        "command": "node \"/Users/ali/orca/workspaces/imagai/tuna/.cursor/hooks/trail-hooks.cjs\" cursor-mcp || exit 0"
       }
     ],
     "sessionEnd": [
       {
-        "command": "node \"/Users/ali/dev/python/AI/imagai/.cursor/hooks/graft-hooks.cjs\" cursor-session-end"
+        "command": "node \"/Users/ali/orca/workspaces/imagai/tuna/.cursor/hooks/trail-hooks.cjs\" cursor-session-end || exit 0"
       }
     ]
   }
